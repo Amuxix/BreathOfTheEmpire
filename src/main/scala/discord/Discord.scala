@@ -21,7 +21,7 @@ class Discord(
 
   private val log: Pipe[IO, (Channel, Article), (Channel, Article)] =
     _.evalTap { (channel, article) =>
-      Logger[IO].info(s"Publishing $article to ${channel.guild.getName}/${channel.name}").void
+      Logger[IO].info(s"Publishing $article to ${channel.guild.getName}/${channel.name}")
     }
 
   private val assignPublishChannels: Pipe[IO, Article, (Channel, Article)] =
