@@ -60,7 +60,7 @@ enum Category(val customName: Option[String] = None):
   case Vestments           extends Category(customName = "Vestment".some) with MainCategory
   case Wands               extends Category(customName = "Wand".some) with MainCategory
   case `Runesmith'sLaw`    extends Category(customName = "Runesmith's Law".some) with ExtraCategory
-  case Tonics              extends Category(customName = "Tonic".some) with MainCategory
+  case Tonics              extends Category(customName = "Potion Recipe".some) with MainCategory
 
   lazy val show: String = toString.replaceAll("([a-z])([A-Z])", "$1 $2")
   lazy val name: String = customName.getOrElse(show)
