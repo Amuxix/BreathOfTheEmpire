@@ -44,7 +44,7 @@ class WikiClient(client: Client[IO], wiki: Uri):
       .spaced(60.seconds / 200)
       .flatMap(query => Stream.emits(query.logevents))
 
-  def pagesCategories(pageIds: List[Int], categories: List[Category])(using Logger[IO]): Stream[IO, Page] =
+  def pagesCategories(pageIds: List[Int])(using Logger[IO]): Stream[IO, WikiPage] =
     val uri = API.withQueryParams(
       Map(
         "action"        -> "query",
@@ -52,7 +52,7 @@ class WikiClient(client: Client[IO], wiki: Uri):
         "prop"          -> "categories",
         "formatversion" -> "2",
         "cllimit"       -> "500",
-        "clcategories"  -> categories.map(cat => "Category:" + cat.show.replaceAll(" ", "_")).mkString("|"),
+        "redirects"     -> "1",
         "pageids"       -> pageIds.mkString("|"),
       ),
     )

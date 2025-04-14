@@ -5,15 +5,15 @@ import cats.implicits.catsSyntaxOptionId
 import discord.Discord
 import fs2.{Pipe, Stream}
 import fs2.io.file.{Files, Path}
-import org.http4s.Uri
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import wiki.{CategoryModel, Page, Wiki}
+import wiki.{Page, Wiki}
 
 import java.nio.file.NoSuchFileException
 import java.time.Instant
 import scala.concurrent.duration.*
 
+//https://discord.com/oauth2/authorize?client_id=1361380675168768223&scope=bot&permissions=377957125120
 object BreathOfTheEmpire extends IOApp.Simple:
   private def readLastInstant(path: Path)(using Logger[IO]): IO[Option[Instant]] =
     Files[IO]
@@ -32,16 +32,15 @@ object BreathOfTheEmpire extends IOApp.Simple:
   def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
     Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
 
-  val toArticle: Pipe[IO, (Page, Option[Uri]), Article] =
-    _.collect {
-      case (page @ Page(Some(title), Some(categories)), Some(uri)) if categories.nonEmpty =>
-        Article(
-          title,
-          PublishCategory.fromMainCategory(page.topCategory),
-          page.lowestCategory.name,
-          page.extraCategories.map(_.name),
-          uri,
-        )
+  val toArticle: Pipe[IO, Page, Article] =
+    _.map { case Page(title, mainCategory, extraCategories, uri) =>
+      Article(
+        title,
+        PublishCategory.fromMainCategory(mainCategory),
+        mainCategory.name,
+        extraCategories.map(_.name),
+        uri,
+      )
     }
 
   def meteredInstantStream(

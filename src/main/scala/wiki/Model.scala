@@ -35,23 +35,19 @@ case class CategoryModel(
   title: String,
 ) derives Decoder
 
-case class Page(
+case class WikiPage(
   // ns: Int,
   title: Option[String],
   // missing: Option[Boolean],
   // pageid: Option[Int],
   categories: Option[List[CategoryModel]],
 ) derives Decoder:
-  lazy val parsedCategories: List[Category] =
-    categories.toList.flatten
-      .flatMap(category => Category.fromString(category.title.replace("Category:", "")).toOption)
-
-  lazy val lowestCategory  = parsedCategories.collect { case c: MainCategory => c }.minBy(_.order)
-  lazy val topCategory     = parsedCategories.collect { case c: MainCategory => c }.maxBy(_.order)
-  lazy val extraCategories = parsedCategories.collect { case c: ExtraCategory => c }
+  lazy val parsedCategories: Set[Category] =
+    categories.toSet.flatten
+      .flatMap(category => Category.fromString(category.title.replace("Category:", "")))
 
 case class PageQuery(
-  pages: List[Page],
+  pages: List[WikiPage],
 ) derives Decoder
 
 case class PageQueryResponse(

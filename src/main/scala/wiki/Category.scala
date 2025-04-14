@@ -2,71 +2,70 @@ package wiki
 
 import cats.syntax.option.*
 
-import scala.util.Try
-
-sealed trait MainCategory(val order: Int = 1)
+sealed trait MainCategory
 sealed trait ExtraCategory
 
 enum Category(val customName: Option[String] = None):
-  case SenateMotion        extends Category with MainCategory
-  case FailedSenateMotion  extends Category(customName = "Failed".some) with ExtraCategory
-  case VetoedSenateMotion  extends Category(customName = "Vetoed".some) with ExtraCategory
-  case Mandate             extends Category with MainCategory
-  case Rituals             extends Category with MainCategory(2)
-  case SpringRitual        extends Category with MainCategory
-  case SummerRitual        extends Category with MainCategory
-  case AutumnRitual        extends Category with MainCategory
-  case DayRitual           extends Category with MainCategory
-  case NightRitual         extends Category with MainCategory
-  case WinterRitual        extends Category with MainCategory
-  case MilitaryCouncil     extends Category(customName = "Wind of War".some) with MainCategory
-  case WindsOfFortune      extends Category("Wind of Fortune".some) with MainCategory(2)
-  case TradeWinds          extends Category(customName = "Wind of Trade".some) with MainCategory
-  case WindsOfMagic        extends Category(customName = "Wind of Magic".some) with MainCategory
+  case MilitaryCouncil     extends Category("Wind of War".some) with MainCategory
+  case WindsOfMagic        extends Category("Wind of Magic".some) with MainCategory
+  case TradeWinds          extends Category("Wind of Trade".some) with MainCategory
+  case WindsOfFortune      extends Category("Wind of Fortune".some) with MainCategory
+  case Tonics              extends Category("Potion Recipe".some) with MainCategory
+  case Rituals             extends Category("Ritual".some) with MainCategory
+  case SpringRitual        extends Category("Spring".some) with ExtraCategory
+  case SummerRitual        extends Category("Summer".some) with ExtraCategory
+  case AutumnRitual        extends Category("Autumn".some) with ExtraCategory
+  case DayRitual           extends Category("Day".some) with ExtraCategory
+  case NightRitual         extends Category("Night".some) with ExtraCategory
+  case WinterRitual        extends Category("Winter".some) with ExtraCategory
   case UrizenLore          extends Category with ExtraCategory
   case Enchantment         extends Category with ExtraCategory
   case Curse               extends Category with ExtraCategory
   case Warfare             extends Category with ExtraCategory
-  case MagicItems          extends Category(customName = "Magic Item".some) with MainCategory(2)
-  case ArcaneImplements    extends Category(customName = "Arcane Implement".some) with MainCategory
-  case ArcaneWeapons       extends Category(customName = "Arcane Weapon".some) with MainCategory
-  case Bows                extends Category(customName = "Bow".some) with MainCategory
-  case Daggers             extends Category(customName = "Dagger".some) with MainCategory
-  case Foci                extends Category(customName = "Focus".some) with MainCategory
-  case Gonfalon            extends Category(customName = "Gonfalon".some) with MainCategory
-  case GreatWeapons        extends Category(customName = "Great Weapon".some) with MainCategory
-  case HeavyArmour         extends Category(customName = "Heavy Armour".some) with MainCategory
-  case Icons               extends Category(customName = "Icon".some) with MainCategory
-  case Jewellery           extends Category(customName = "Jewellery".some) with MainCategory
-  case LightArmour         extends Category(customName = "Light Armour".some) with MainCategory
-  case MageArmour          extends Category(customName = "Mage Armour".some) with MainCategory
-  case MageRobes           extends Category(customName = "Mage Robe".some) with MainCategory
-  case MagicStandards      extends Category(customName = "Magic Standard".some) with MainCategory
-  case MediumArmour        extends Category(customName = "Medium Armour".some) with MainCategory
-  case MusicalInstruments  extends Category(customName = "Musical Instrument".some) with MainCategory
-  case `One-handedSpears`  extends Category(customName = "One-handed Spear".some) with MainCategory
-  case `One-handedWeapons` extends Category(customName = "One-handed Weapon".some) with MainCategory
-  case PairedWeapons       extends Category(customName = "Paired Weapon".some) with MainCategory
-  case Paraphernalia       extends Category(customName = "Paraphernalia".some) with MainCategory
-  case Polearms            extends Category(customName = "Polearm".some) with MainCategory
-  case Regalia             extends Category(customName = "Regalia".some) with MainCategory
-  case Reliquaries         extends Category(customName = "Reliquary".some) with MainCategory
-  case RitualMasks         extends Category(customName = "Ritual Mask".some) with MainCategory
-  case RitualStaves        extends Category(customName = "Ritual Staff".some) with MainCategory
-  case Rods                extends Category(customName = "Rod".some) with MainCategory
-  case Shields             extends Category(customName = "Shield".some) with MainCategory
-  case Staffs              extends Category(customName = "Staff".some) with MainCategory
-  case Tools               extends Category(customName = "Tool".some) with MainCategory
-  case Vestments           extends Category(customName = "Vestment".some) with MainCategory
-  case Wands               extends Category(customName = "Wand".some) with MainCategory
-  case `Runesmith'sLaw`    extends Category(customName = "Runesmith's Law".some) with ExtraCategory
-  case Tonics              extends Category(customName = "Potion Recipe".some) with MainCategory
+  case MagicItems          extends Category("Magic Item".some) with MainCategory
+  case ArcaneImplements    extends Category("Arcane Implement".some) with ExtraCategory
+  case ArcaneWeapons       extends Category("Arcane Weapon".some) with ExtraCategory
+  case Bows                extends Category("Bow".some) with ExtraCategory
+  case Daggers             extends Category("Dagger".some) with ExtraCategory
+  case Foci                extends Category("Focus".some) with ExtraCategory
+  case Gonfalon            extends Category with ExtraCategory
+  case GreatWeapons        extends Category("Great Weapon".some) with ExtraCategory
+  case HeavyArmour         extends Category with ExtraCategory
+  case Icons               extends Category("Icon".some) with ExtraCategory
+  case Jewellery           extends Category with ExtraCategory
+  case LightArmour         extends Category with ExtraCategory
+  case MageArmour          extends Category with ExtraCategory
+  case MageRobes           extends Category("Mage Robe".some) with ExtraCategory
+  case MagicStandards      extends Category("Magic Standard".some) with ExtraCategory
+  case MediumArmour        extends Category with ExtraCategory
+  case MusicalInstruments  extends Category("Musical Instrument".some) with ExtraCategory
+  case `One-handedSpears`  extends Category("One-handed Spear".some) with ExtraCategory
+  case `One-handedWeapons` extends Category("One-handed Weapon".some) with ExtraCategory
+  case PairedWeapons       extends Category("Paired Weapon".some) with ExtraCategory
+  case Paraphernalia       extends Category with ExtraCategory
+  case Polearms            extends Category("Polearm".some) with ExtraCategory
+  case Regalia             extends Category with ExtraCategory
+  case Reliquaries         extends Category("Reliquary".some) with ExtraCategory
+  case RitualMasks         extends Category("Ritual Mask".some) with ExtraCategory
+  case RitualStaves        extends Category("Ritual Staff".some) with ExtraCategory
+  case Rods                extends Category("Rod".some) with ExtraCategory
+  case Shields             extends Category("Shield".some) with ExtraCategory
+  case Staffs              extends Category("Staff".some) with ExtraCategory
+  case Tools               extends Category("Tool".some) with ExtraCategory
+  case Vestments           extends Category("Vestment".some) with ExtraCategory
+  case Wands               extends Category("Wand".some) with ExtraCategory
+  case `Runesmith'sLaw`    extends Category with ExtraCategory
+  case SenateMotion        extends Category with MainCategory
+  case FailedSenateMotion  extends Category("Failed".some) with ExtraCategory
+  case VetoedSenateMotion  extends Category("Vetoed".some) with ExtraCategory
+  case Mandate             extends Category with MainCategory
 
   lazy val show: String = toString.replaceAll("([a-z])([A-Z])", "$1 $2")
   lazy val name: String = customName.getOrElse(show)
 
 object Category:
-  def fromString(string: String): Either[String, Category] =
-    Try(Category.valueOf(string.replaceAll(" ", ""))).toOption
-      .toRight(s"Invalid Category `$string` please use one of ${Category.values.map(_.show).mkString(", ")}.")
-end Category
+  private lazy val valueMap = Category.values.map(v => v.toString.toLowerCase -> v).toMap
+
+  def fromString(string: String): Option[Category] =
+    valueMap
+      .get(string.toLowerCase.replaceAll(" ", ""))
