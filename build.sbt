@@ -47,10 +47,6 @@ ThisBuild / githubWorkflowJobSetup ++= Seq(
 Universal / javaOptions            ++= Seq(
   "-Dconfig.file=/opt/docker/conf/application.conf",
 )
-Universal / mappings               ++= Seq(
-  file("trigrams.csv")  -> "trigrams.csv",
-  file("quadgrams.csv") -> "quadgrams.csv",
-)
 
 Docker / dockerRepository := Some("amuxix")
 dockerUpdateLatest        := true
