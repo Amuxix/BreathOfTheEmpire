@@ -2,7 +2,7 @@ package empire
 
 import cats.effect.{IO, IOApp, Resource}
 import cats.implicits.catsSyntaxOptionId
-import discord.{Discord, DiscordClient}
+import discord.Discord
 import fs2.{Pipe, Stream}
 import fs2.io.file.{Files, Path}
 import org.http4s.Uri
@@ -15,7 +15,7 @@ import java.time.Instant
 import scala.concurrent.duration.*
 
 object BreathOfTheEmpire extends IOApp.Simple:
-  private def readLastInstant(path: Path): IO[Option[Instant]] =
+  private def readLastInstant(path: Path)(using Logger[IO]): IO[Option[Instant]] =
     Files[IO]
       .readUtf8Lines(path)
       .compile
@@ -25,6 +25,9 @@ object BreathOfTheEmpire extends IOApp.Simple:
         case instant                    => Instant.parse(instant).some
       }
       .recover { case _: NoSuchFileException => None }
+      .flatTap(
+        _.fold(Logger[IO].debug("last instant not found"))(instant => Logger[IO].debug(s"last instant is $instant")),
+      )
 
   def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
     Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
@@ -34,8 +37,8 @@ object BreathOfTheEmpire extends IOApp.Simple:
       case (page @ Page(Some(title), Some(categories)), Some(uri)) if categories.nonEmpty =>
         Article(
           title,
-          PublishCategory.fromMainCategory(page.lowestCategory),
-          page.topCategory.name,
+          PublishCategory.fromMainCategory(page.topCategory),
+          page.lowestCategory.name,
           page.extraCategories.map(_.name),
           uri,
         )
@@ -44,7 +47,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
   def meteredInstantStream(
     lastInstant: Path,
     interval: FiniteDuration,
-  ): Stream[IO, Instant] =
+  )(using Logger[IO]): Stream[IO, Instant] =
     Stream
       .eval(readLastInstant(lastInstant))
       .flatMap {
@@ -60,13 +63,14 @@ object BreathOfTheEmpire extends IOApp.Simple:
     discord: Discord,
     instant: Instant,
   )(using Logger[IO]): IO[Unit] =
-    Logger[IO].debug("Looking for new articles...") *>
+    Logger[IO].debug(s"Looking for new articles since $instant...") *>
       wiki
         .pagesCreatedAfter(instant)
         .through(toArticle)
         .through(discord.publishArticle)
         .compile
-        .drain
+        .toList
+        .flatMap(list => Logger[IO].debug(s"Published ${list.size} articles."))
 
   def stream(
     wiki: Wiki,
@@ -76,13 +80,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
   )(using Logger[IO]): Stream[IO, Unit] =
     meteredInstantStream(lastInstant, interval)
       .evalTap(publishNewArticlesCreatedAfter(wiki, discord, _))
-      .evalMap(writeLastInstant(lastInstant, _))
-
-  def resources(using Logger[IO]) = for
-    config  <- Resource.eval(Configuration.fromConfig())
-    wiki    <- Wiki(config.wiki)
-    discord <- DiscordClient(config.discord.token)
-  yield (wiki, discord, config.lastInstantPath, config.interval)
+      .evalMap(_ => writeLastInstant(lastInstant, Instant.now))
 
   override def run: IO[Unit] =
     (for
