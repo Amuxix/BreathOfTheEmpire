@@ -3,11 +3,11 @@ package discord
 import discord.DiscordID
 import pureconfig.ConfigReader
 
-case class DiscordConfiguration(
+case class Configuration(
   token: String,
-  windsChannel: DiscordID,
-  mandatesChannel: DiscordID,
-  motionsChannel: DiscordID,
-  ritualsChannel: DiscordID,
-  itemsChannel: DiscordID,
+  windsChannels: List[DiscordID],
+  mandatesChannels: List[DiscordID],
+  motionsChannels: List[DiscordID],
+  ritualsChannels: List[DiscordID],
+  othersChannels: List[DiscordID],
 ) derives ConfigReader

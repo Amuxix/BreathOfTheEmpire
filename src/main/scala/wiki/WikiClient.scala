@@ -1,4 +1,4 @@
-package empire
+package wiki
 
 import cats.effect.IO
 import cats.effect.kernel.Resource

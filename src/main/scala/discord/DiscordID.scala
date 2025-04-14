@@ -1,4 +1,4 @@
-package cuteguard.model.discord
+package discord
 
 import doobie.{Get, Put}
 import pureconfig.ConfigReader
