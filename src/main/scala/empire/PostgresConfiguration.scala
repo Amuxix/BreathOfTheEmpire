@@ -1,4 +1,4 @@
-package cuteguard
+package empire
 
 import cats.effect.IO
 import doobie.util.log.LogHandler

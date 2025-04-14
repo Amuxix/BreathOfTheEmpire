@@ -1,4 +1,4 @@
-package empire
+package wiki
 
 import io.circe.Decoder
 

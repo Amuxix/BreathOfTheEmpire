@@ -1,4 +1,5 @@
-package wiki
+package empire
+import wiki.{Category, MainCategory}
 
 enum PublishCategory:
   case Wind, Mandate, Motion, Ritual, Other

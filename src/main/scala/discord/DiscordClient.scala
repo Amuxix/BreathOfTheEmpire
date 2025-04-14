@@ -1,34 +1,47 @@
 package discord
 
-import cats.data.EitherT
+import cats.data.{EitherT, OptionT}
 import cats.effect.IO
 import cats.effect.kernel.Resource
+import cats.instances.list.*
 import cats.syntax.either.*
-import discord.Discord.*
+import cats.syntax.traverse.*
+import discord.DiscordClient.*
+import discord.Maybe
 import net.dv8tion.jda.api.{JDA, JDABuilder}
+import net.dv8tion.jda.api.entities.Guild
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel
 import net.dv8tion.jda.api.requests.RestAction
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.Promise
+import scala.jdk.CollectionConverters.*
 
-type Maybe[T] = EitherT[IO, Throwable, T]
+class DiscordClient(val jda: JDA):
+  def channelByID(id: DiscordID)(using Logger[IO]): OptionT[IO, Channel] =
+    OptionT {
+      getter[Long](
+        id.toLong,
+        "channel",
+        (id: Long) => jda.getChannelById(classOf[MessageChannel], id),
+        (channel: MessageChannel) => new Channel(channel, channelGuildByID(channel.getIdLong)),
+      )
+        .foldF(
+          error => Logger[IO].error(error.getMessage).as(None),
+          channel => IO.pure(Some(channel)),
+        )
+    }
 
-extension [A](action: RestAction[A])
-  def toIO: IO[A] = IO.fromFuture(IO {
-    val p = Promise[A]()
-    action.queue(p.success, p.failure)
-    p.future
-  })
+  def channelsByIDs(ids: List[DiscordID])(using Logger[IO]): IO[List[Channel]] =
+    ids.flatTraverse(id => channelByID(id).value.map(_.toList))
 
-class Discord(val jda: JDA):
-  def channelByID(id: DiscordID): Maybe[Channel] =
-    getter[Long](id.toLong, "channel", jda.getChannelById(classOf[MessageChannel], _), new Channel(_))
+  def guilds: Set[Guild] = jda.getGuilds.asScala.toSet
 
-object Discord:
+  private def channelGuildByID(id: Long): Guild = guilds.find(_.getChannels.asScala.exists(_.getIdLong == id)).get
+
+object DiscordClient:
   final private[discord] class PartiallyAppliedGetter[ID](private val dummy: Boolean = true) extends AnyVal:
     def apply[A, B](id: ID, what: String, get: ID => A, transform: A => B): Maybe[B] =
-      EitherT.fromOption(Option(get(id)), new Exception(s"Failed to get $what with id $id")).map(transform)
+      EitherT.fromOption[IO](Option(get(id)), new Exception(s"Failed to get $what with id $id")).map(transform)
 
   def getter[ID]: PartiallyAppliedGetter[ID] = new PartiallyAppliedGetter[ID]
 
@@ -40,7 +53,7 @@ object Discord:
 
   def apply(
     token: String,
-  )(using Logger[IO]): Resource[IO, Discord] =
+  )(using Logger[IO]): Resource[IO, DiscordClient] =
     val acquire = IO {
       JDABuilder
         .createDefault(token)
@@ -48,8 +61,13 @@ object Discord:
         .awaitReady()
     }
 
+    def shutdown(jda: JDA) = IO {
+      jda.shutdown()
+      jda.awaitShutdown()
+    }.void
+
     Resource
-      .make(acquire)(jda => IO(jda.shutdown()))
-      .evalTap(_ => Logger[IO].debug("JDA acquired"))
-      .onFinalize(Logger[IO].debug("JDA released"))
-      .map(new Discord(_))
+      .make(acquire)(shutdown)
+      .evalTap(_ => Logger[IO].debug("Discord client acquired"))
+      .onFinalize(Logger[IO].debug("Discord client released"))
+      .map(new DiscordClient(_))
