@@ -10,6 +10,7 @@ import org.http4s.ember.client.EmberClientBuilder
 import org.typelevel.log4cats.Logger
 
 import java.time.Instant
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.*
 
 class WikiClient(client: Client[IO], wiki: Uri):
@@ -26,7 +27,7 @@ class WikiClient(client: Client[IO], wiki: Uri):
         "lenamespace"   -> "0",
         "ledir"         -> "newer",
         "lelimit"       -> "500",
-        "lestart"       -> from.toString,
+        "lestart"       -> from.truncatedTo(ChronoUnit.MICROS).toString,
       ),
     )
     Stream
