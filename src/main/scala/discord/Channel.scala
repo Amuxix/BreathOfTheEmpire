@@ -1,26 +1,20 @@
 package discord
 
-import cats.Show
-import cats.effect.IO
-import net.dv8tion.jda.api.entities.{Guild, MessageEmbed}
-import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel
-import net.dv8tion.jda.api.utils.FileUpload
+import net.dv8tion.jda.api.entities.Guild
+import net.dv8tion.jda.api.entities.channel.{Channel as JDAChannel, ChannelType}
+import net.dv8tion.jda.api.entities.channel.concrete.{ForumChannel as JDAForumChannel, TextChannel as JDATextChannel}
 
-import java.io.File
 import scala.compiletime.asMatchable
 
-class Channel(channel: MessageChannel, val guild: Guild):
+open class Channel(channel: JDAChannel, val guild: Guild):
   lazy val discordID: DiscordID = DiscordID(channel.getIdLong)
   lazy val mention: String      = channel.getAsMention
   lazy val name: String         = channel.getName
 
-  def sendMessage(string: String): IO[Message]    =
-    channel.sendMessage(string).toIO.map(new Message(_))
-  def sendEmbed(embed: MessageEmbed): IO[Message] = channel.sendMessageEmbeds(embed).toIO.map(new Message(_))
-  def sendFile(file: File): IO[Message]           = channel
-    .sendFiles(FileUpload.fromData(file))
-    .toIO
-    .map(new Message(_))
+  def toSpecific: Channel = channel.getType match
+    case ChannelType.TEXT  => TextChannel(channel.asInstanceOf[JDATextChannel], guild)
+    case ChannelType.FORUM => ForumChannel(channel.asInstanceOf[JDAForumChannel], guild)
+    case _                 => throw new Exception("Channel type not supported")
 
   override def toString: String = mention
 
@@ -31,6 +25,3 @@ class Channel(channel: MessageChannel, val guild: Guild):
   override def hashCode(): Int =
     val state = Seq(discordID)
     state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)
-
-object Channel:
-  given Show[Channel] = Show.fromToString
