@@ -15,9 +15,14 @@ class Discord(
   motionsChannels: List[Channel],
   ritualsChannels: List[Channel],
   othersChannels: List[Channel],
+  tags: Map[DiscordID, Map[PublishCategory, DiscordID]],
 )(using Logger[IO]):
-  private def publishArticleAsText(channel: Channel, article: Article): IO[Unit] =
+  private def publishArticleAsText(channel: TextChannel, article: Article): IO[Unit] =
     channel.sendMessage(s"[$article](<${article.uri}>)").void
+
+  private def publishArticleAsPost(channel: ForumChannel, article: Article): IO[Unit] =
+    val tagID = tags.get(channel.discordID).flatMap(_.get(article.publishCategory)).toList
+    channel.createForumPost(article.toString, article.uri.toString, tagID*)
 
   private val log: Pipe[IO, (Channel, Article), (Channel, Article)] =
     _.evalTap { (channel, article) =>
@@ -27,25 +32,33 @@ class Discord(
   private val assignPublishChannels: Pipe[IO, Article, (Channel, Article)] =
     _.flatMap { article =>
       (article.publishCategory match
-        case PublishCategory.Wind    => Stream.emits(windsChannels)
-        case PublishCategory.Mandate => Stream.emits(mandatesChannels)
-        case PublishCategory.Motion  => Stream.emits(motionsChannels)
-        case PublishCategory.Ritual  => Stream.emits(ritualsChannels)
-        case PublishCategory.Other   => Stream.emits(othersChannels)
+        case PublishCategory.WindOfFortune => Stream.emits(windsChannels)
+        case PublishCategory.WindOfWar     => Stream.emits(windsChannels)
+        case PublishCategory.Mandate       => Stream.emits(mandatesChannels)
+        case PublishCategory.Motion        => Stream.emits(motionsChannels)
+        case PublishCategory.Ritual        => Stream.emits(ritualsChannels)
+        case PublishCategory.Other         => Stream.emits(othersChannels)
       )
         .map(_ -> article)
     }
 
-  private val publishAsText: Pipe[IO, (Channel, Article), Unit] =
-    _.evalMap(publishArticleAsText.tupled)
+  private val publish: Pipe[IO, (Channel, Article), Unit] =
+    _.evalMap {
+      case (channel: TextChannel, article)  => publishArticleAsText(channel, article)
+      case (channel: ForumChannel, article) => publishArticleAsPost(channel, article)
+    }
 
   val publishArticle: Pipe[IO, Article, Unit] =
     _.through(assignPublishChannels)
       .through(log)
-      .through(publishAsText)
+      .through(publish)
 
 object Discord:
-  def warnMissingGuilds(guilds: Map[Long, String], channels: List[Channel], what: String)(using Logger[IO]): IO[Unit] =
+  def warnMissingGuilds(
+    guilds: Map[Long, String],
+    channels: List[Channel],
+    what: String,
+  )(using Logger[IO]): IO[Unit] =
     guilds.keySet.diff(channels.map(_.guild.getIdLong).toSet).map(guilds.apply).toList.traverse_ { guildName =>
       Logger[IO].warn(s"$guildName has no channel to publish $what!")
     }
@@ -70,11 +83,11 @@ object Discord:
   def apply(config: Configuration)(using Logger[IO]): Resource[IO, Discord] =
     DiscordClient(config.token).evalMap { client =>
       for
-        windsChannels    <- client.channelsByIDs(config.windsChannels)
-        mandatesChannels <- client.channelsByIDs(config.mandatesChannels)
-        motionsChannels  <- client.channelsByIDs(config.motionsChannels)
-        ritualsChannels  <- client.channelsByIDs(config.ritualsChannels)
-        othersChannels   <- client.channelsByIDs(config.othersChannels)
+        windsChannels    <- client.channels(config.windsChannels)
+        mandatesChannels <- client.channels(config.mandatesChannels)
+        motionsChannels  <- client.channels(config.motionsChannels)
+        ritualsChannels  <- client.channels(config.ritualsChannels)
+        othersChannels   <- client.channels(config.othersChannels)
         _                <- warnMissingGuildChannels(
                               client,
                               windsChannels,
@@ -89,5 +102,6 @@ object Discord:
         motionsChannels,
         ritualsChannels,
         othersChannels,
+        config.tagMap,
       )
     }
