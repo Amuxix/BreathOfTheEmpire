@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.instances.list.*
 import cats.syntax.foldable.*
-import empire.{Article, PublishCategory}
 import fs2.Pipe
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -22,7 +21,10 @@ class Discord(
 
   private def publishArticleAsPost(channel: ForumChannel, article: Article): IO[Unit] =
     val tagID = tags.get(channel.discordID).flatMap(_.get(article.publishCategory)).toList
-    channel.createForumPost(article.toString, article.uri.toString, tagID*)
+    for
+      extraInfo <- article.extraInfo
+      _         <- channel.createForumPost(article.toString, extraInfo.getOrElse("") + article.uri.toString, tagID*)
+    yield ()
 
   private val log: Pipe[IO, (Channel, Article), (Channel, Article)] =
     _.evalTap { (channel, article) =>
@@ -42,16 +44,18 @@ class Discord(
         .map(_ -> article)
     }
 
-  private val publish: Pipe[IO, (Channel, Article), Unit] =
+  val publish: Pipe[IO, (Channel, Article), Unit] =
     _.evalMap {
       case (channel: TextChannel, article)  => publishArticleAsText(channel, article)
       case (channel: ForumChannel, article) => publishArticleAsPost(channel, article)
+      case _                                => IO.unit
     }
 
   val publishArticle: Pipe[IO, Article, Unit] =
     _.through(assignPublishChannels)
       .through(log)
       .through(publish)
+      .as(())
 
 object Discord:
   def warnMissingGuilds(

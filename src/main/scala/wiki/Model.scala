@@ -1,13 +1,34 @@
 package wiki
 
-import io.circe.Decoder
+import cats.instances.option.*
+import cats.syntax.traverse.*
+import io.circe.{Decoder, HCursor}
+import io.circe.Decoder.Result
 
-case class Continue(
-  clcontinue: Option[String],
-  grccontinue: Option[String],
-  lecontinue: Option[String],
-  continue: String,
-) derives Decoder
+case class SingleQueryResponse[Q: Decoder](
+  continue: Option[String],
+  data: List[Q],
+)
+
+object SingleQueryResponse:
+  private def extractContinue(c: HCursor): Result[Option[String]] =
+    val outer = c.downField("continue")
+    outer.keys
+      .flatMap(_.filterNot(_ == "continue").headOption)
+      .traverse(outer.downField(_).as[String])
+
+  private def extractQuery[Q: Decoder](c: HCursor): Result[List[Q]] =
+    val outer = c.downField("query")
+    outer.keys
+      .flatMap(_.filterNot(_ == "redirects").headOption)
+      .toList
+      .flatTraverse(outer.downField(_).as[List[Q]])
+
+  given [Q: Decoder] => Decoder[SingleQueryResponse[Q]] = (c: HCursor) =>
+    for
+      continue <- extractContinue(c)
+      data     <- extractQuery(c)
+    yield SingleQueryResponse(continue, data)
 
 case class Logevent(
   // logid: Int,
@@ -21,15 +42,6 @@ case class Logevent(
   // tags: List[String],
 ) derives Decoder
 
-case class LogeventQuery(
-  logevents: List[Logevent],
-) derives Decoder
-
-case class LogeventQueryResponse(
-  continue: Option[Continue],
-  query: LogeventQuery,
-) derives Decoder
-
 case class CategoryModel(
   // ns: Int,
   title: String,
@@ -39,19 +51,24 @@ case class WikiPage(
   // ns: Int,
   title: Option[String],
   // missing: Option[Boolean],
-  // pageid: Option[Int],
+  pageid: Option[Int],
   categories: Option[List[CategoryModel]],
 ) derives Decoder:
   lazy val parsedCategories: Set[Category] =
     categories.toSet.flatten
       .flatMap(category => Category.fromString(category.title.replace("Category:", "")))
 
-case class PageQuery(
-  pages: List[WikiPage],
-) derives Decoder
+  lazy val mainCategories = parsedCategories.collect { case c: MainCategory => c }
 
-case class PageQueryResponse(
-  continue: Option[Continue],
-  query: Option[PageQuery],
-  batchcomplete: Option[Boolean],
-) derives Decoder
+case class PageSection(
+  section: String,
+  text: String,
+)
+
+object PageSection:
+  given Decoder[PageSection] = (c: HCursor) =>
+    val parse = c.downField("parse")
+    for
+      section <- parse.downField("sections").downN(0).downField("line").as[String]
+      text    <- parse.downField("wikitext").as[String]
+    yield PageSection(section, text)

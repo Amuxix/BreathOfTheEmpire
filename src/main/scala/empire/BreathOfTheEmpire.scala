@@ -1,13 +1,15 @@
 package empire
 
 import cats.effect.{IO, IOApp, Resource}
-import cats.implicits.catsSyntaxOptionId
-import discord.Discord
+import cats.instances.option.*
+import cats.syntax.option.*
+import cats.syntax.traverse.*
+import discord.{Article, Discord, PublishCategory}
 import fs2.{Pipe, Stream}
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import wiki.{Page, Wiki}
+import wiki.{Category, ExtraInfo as WikiExtraInfo, MainCategory, Page, Wiki}
 
 import java.nio.file.NoSuchFileException
 import java.time.Instant
@@ -29,17 +31,35 @@ object BreathOfTheEmpire extends IOApp.Simple:
         _.fold(Logger[IO].debug("last instant not found"))(instant => Logger[IO].debug(s"last instant is $instant")),
       )
 
-  def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
+  private def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
     Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
 
+  def publishCategory(category: MainCategory): PublishCategory = category match
+    case Category.TradeWinds      => PublishCategory.WindOfFortune
+    case Category.WindsOfMagic    => PublishCategory.WindOfFortune
+    case Category.WindsOfFortune  => PublishCategory.WindOfFortune
+    case Category.MilitaryCouncil => PublishCategory.WindOfWar
+    case Category.Mandate         => PublishCategory.Mandate
+    case Category.SenateMotion    => PublishCategory.Motion
+    case Category.Rituals         => PublishCategory.Ritual
+    case _                        => PublishCategory.Other
+
+  private def formatExtraInfo(extraInfo: WikiExtraInfo, uriLength: Int): String =
+    val remainingLength = 2000 - uriLength - 50 // a bit of an extra buffer
+    val truncatedText   =
+      if extraInfo.text.length > remainingLength then extraInfo.text.take(remainingLength) + "..." else extraInfo.text
+    val body            = truncatedText.split("\n").map("> " + _).mkString("\n")
+    s"$body\n\n"
+
   val toArticle: Pipe[IO, Page, Article] =
-    _.map { case Page(title, mainCategory, extraCategories, uri) =>
+    _.map { case Page(title, mainCategory, extraCategories, uri, extraInfo) =>
       Article(
         title,
-        PublishCategory.fromMainCategory(mainCategory),
+        publishCategory(mainCategory),
         mainCategory.name,
         extraCategories.map(_.name),
         uri,
+        extraInfo.traverse(_.map(formatExtraInfo(_, uri.toString.length))),
       )
     }
 
