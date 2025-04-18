@@ -43,9 +43,9 @@ object XMLRender:
           case "i"     => RenderWithWrapper("*")
           case "s"     => RenderWithWrapper("__")
           case "span" | "ul" | "sup " | "sup" => Render
-          case "div" if elem.hasClass("mw-parser-output")                                         => Render
-          case "div" if elem.styleContains("float: ?right".r)                                     => Skip
-          case "div" if elem.styleContains("float: ?left".r)                                      => Skip
+          case "div" if elem.hasClass("mw-parser-output")                                                => Render
+          case "div" if elem.styleContains("float: ?right".r)                                            => Skip
+          case "div" if elem.styleContains("float: ?left".r)                                             => Skip
           case "div" if elem.hasClass("captioned-image", "ic", "embedvideo", "ic-inner", "quote", "box") => Skip
           case "table" | "br" => Skip
           case other =>
@@ -69,4 +69,5 @@ object XMLRender:
 
       case _ => ""
 
-  def render(node: Node, wiki: Uri): IO[String] = IO.blocking(inner(wiki)("", node).replaceFirst("\n*#+ [a-zA-Z ]+\n*", ""))
+  def render(node: Node, wiki: Uri): IO[String] =
+    IO.blocking(inner(wiki)("", node).replaceFirst("\n*#+ [a-zA-Z ]+\n*", ""))
