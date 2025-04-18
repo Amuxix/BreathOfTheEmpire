@@ -94,6 +94,7 @@ libraryDependencies ++= Seq(
   http4sDSL,
   http4sCirce,
   http4sEmberClient,
+  http4sXml,
   // Json
   circe,
   circeParser,
@@ -119,3 +120,4 @@ lazy val http4s            = "org.http4s"            %% "http4s-core"           
 lazy val http4sDSL         = http4s.organization     %% "http4s-dsl"                 % http4s.revision
 lazy val http4sCirce       = http4s.organization     %% "http4s-circe"               % http4s.revision
 lazy val http4sEmberClient = http4s.organization     %% "http4s-ember-client"        % http4s.revision
+lazy val http4sXml         = http4s.organization     %% "http4s-scala-xml"           % "0.23.14"

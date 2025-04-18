@@ -9,7 +9,7 @@ case class Article(
   mainCategory: String,
   extraCategories: List[String],
   uri: Uri,
-  extraInfo: IO[Option[String]],
+  extraInfo: IO[String],
 ):
-  lazy val extraCategoriesString     = if extraCategories.isEmpty then "" else extraCategories.mkString(", ", ", ", "")
-  override lazy val toString: String = s"[$mainCategory$extraCategoriesString] $title"
+  lazy val extraCategoriesString = if extraCategories.isEmpty then "" else extraCategories.mkString(", ", ", ", "")
+  lazy val show: String          = s"[$mainCategory$extraCategoriesString] $title"

@@ -8,9 +8,7 @@ case class Page(
   mainCategory: Category & MainCategory,
   extraCategories: List[Category & ExtraCategory],
   uri: Uri,
-  extraInfo: Option[IO[ExtraInfo]],
+  extraInfo: IO[String],
 ):
   lazy val extraCategoriesString     = if extraCategories.isEmpty then "" else extraCategories.mkString(", ", ", ", "")
   override lazy val toString: String = s"[$mainCategory$extraCategoriesString] $title"
-
-case class ExtraInfo(title: String, text: String)

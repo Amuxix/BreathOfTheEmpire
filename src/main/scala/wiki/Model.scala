@@ -5,6 +5,8 @@ import cats.syntax.traverse.*
 import io.circe.{Decoder, HCursor}
 import io.circe.Decoder.Result
 
+import scala.xml.{Elem, XML}
+
 case class SingleQueryResponse[Q: Decoder](
   continue: Option[String],
   data: List[Q],
@@ -61,14 +63,9 @@ case class WikiPage(
   lazy val mainCategories = parsedCategories.collect { case c: MainCategory => c }
 
 case class PageSection(
-  section: String,
-  text: String,
+  text: Elem,
 )
 
 object PageSection:
-  given Decoder[PageSection] = (c: HCursor) =>
-    val parse = c.downField("parse")
-    for
-      section <- parse.downField("sections").downN(0).downField("line").as[String]
-      text    <- parse.downField("wikitext").as[String]
-    yield PageSection(section, text)
+  given Decoder[PageSection] =
+    _.downField("parse").downField("text").as[String].map(text => PageSection(XML.loadString(text)))
