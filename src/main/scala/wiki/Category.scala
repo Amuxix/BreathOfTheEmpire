@@ -13,7 +13,7 @@ enum Category:
   case WindsOfMagic         extends Category with MainCategory with CustomName("Wind of Magic")
   case TradeWinds           extends Category with MainCategory with CustomName("Wind of Trade")
   case WindsOfFortune       extends Category with MainCategory with CustomName("Wind of Fortune")
-  // case ForeignNations       extends Category with ExtraCategory
+  case ForeignNations       extends Category with ExtraCategory
   case Commonwealth         extends Category with ExtraCategory
   case Faraden              extends Category with ExtraCategory
   case IronConfederacy      extends Category with ExtraCategory with CustomName("Confederacy")
@@ -21,7 +21,7 @@ enum Category:
   case SarcophanDelves      extends Category with ExtraCategory with CustomName("Delves")
   case Skoura               extends Category with ExtraCategory
   case SumaahRepublic       extends Category with ExtraCategory with CustomName("Sumaah")
-  // case Barbarians           extends Category with ExtraCategory
+  case Barbarians           extends Category with ExtraCategory
   case Druj                 extends Category with ExtraCategory
   case Grendel              extends Category with ExtraCategory
   case Jotun                extends Category with ExtraCategory

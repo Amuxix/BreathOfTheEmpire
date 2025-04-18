@@ -1,13 +1,10 @@
 package wiki
 
 import cats.effect.IO
-import cats.syntax.option.*
 import fs2.{Pipe, Stream}
 import org.typelevel.log4cats.Logger
 
 import java.time.Instant
-import scala.util.matching.Regex
-import scala.util.matching.Regex.Match
 
 class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
   private val overviewRegex =
@@ -41,44 +38,22 @@ class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
         case logevent if !overviewRegex.matches(logevent.title) => logevent.pageid
       }
 
-  def cleanUpSectionText(text: String): String =
-    List(
-      (text: String) => text.replaceAll("==.+?==\\n?", ""),
-      (text: String) => text.replaceAll("\\{\\{PDFLink.*?\\}\\}\\n?", ""),
-      (text: String) => text.replaceAll("<div.+?>.+?</div>\\n?", ""),
-      (text: String) =>
-        "\\[\\[([^|\\]]+?)\\]\\]".r
-          .replaceAllIn(text, (m: Match) => s"[${m.group(1)}](<${client.pageUri(m.group(1))}>)"),
-      (text: String) =>
-        "\\[\\[(.*?)\\|(.+?)\\]\\]".r
-          .replaceAllIn(text, (m: Match) => s"[${m.group(2)}](<${client.pageUri(m.group(1))}>)"),
-      (text: String) => text.replaceAll("''(.+?)''", "*$1*"),
-      (text: String) => text.replaceAll("\\n", "\n"),
-    ).foldLeft(text)((text, f) => f(text))
-
   private val toPage: Pipe[IO, WikiPage, Page] =
     _.collect {
-      case page @ WikiPage(Some(title), Some(pageid), _)
+      case page @ WikiPage(Some(title), Some(pageID), _)
           if !overviewRegex.matches(title) && page.mainCategories.nonEmpty =>
         val mainCategory = page.mainCategories.minBy(_.ordinal)
 
-        Page(
-          title,
-          mainCategory,
-          page.parsedCategories.collect { case c: ExtraCategory => c }.toList.sortBy(_.ordinal),
-          client.pageUri(title),
-          extraInfo(pageid, mainCategory),
-        )
-    }
-
-  private def extraInfo(pageID: Int, mainCategory: Category & MainCategory): Option[IO[ExtraInfo]] =
-    mainCategory match
-      case Category.WindsOfFortune =>
-        client
-          .firstSectionOfPage(pageID)
-          .map(section => ExtraInfo(section.section, cleanUpSectionText(section.text)))
-          .some
-      case _                       => None
+        client.pageSection(pageID, 1).memoize.map { extraInfo =>
+          Page(
+            title,
+            mainCategory,
+            page.parsedCategories.collect { case c: ExtraCategory => c }.toList.sortBy(_.ordinal),
+            client.pageUri(title),
+            extraInfo,
+          )
+        }
+    }.evalMap(identity)
 
   def pagesCreatedAfter(startInstant: Instant): Stream[IO, Page] =
     pageIDsCreatedAfter(startInstant)

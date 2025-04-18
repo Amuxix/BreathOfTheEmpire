@@ -67,16 +67,20 @@ class WikiClient(client: Client[IO], val wiki: Uri):
   def page(uri: Uri): IO[String] =
     client.get(uri)(_.bodyText.compile.foldMonoid)
 
-  def firstSectionOfPage(pageId: Int): IO[PageSection] =
+  def pageSection(pageId: Int, section: Int): IO[String] =
     val uri = API.withQueryParams(
       actionParams("parse") ++ Map(
-        "pageid"     -> pageId.toString,
-        "prop"       -> "wikitext|sections",
-        "section"    -> "1",
-        "disabletoc" -> "1",
+        "prop"                      -> "text",
+        "disabletoc"                -> "1",
+        "disablelimitreport"        -> "1",
+        "disableeditsection"        -> "1",
+        "disablestylededuplication" -> "1",
+        "disabletoc"                -> "1",
+        "section"                   -> section.toString,
+        "pageid"                    -> pageId.toString,
       ),
     )
-    client.expect[PageSection](uri)
+    client.expect[PageSection](uri).flatMap(section => XMLRender.render(section.text, wiki))
 
 object WikiClient:
   def apply(API: Uri)(using Logger[IO]): Resource[IO, WikiClient] =
@@ -85,7 +89,6 @@ object WikiClient:
       .build
       .evalTap(_ => Logger[IO].debug("WikiClient acquired"))
       .onFinalize(Logger[IO].debug("WikiClient released"))
-      // .map(FollowRedirect(maxRedirects = 3))
       .map(
         LoggerMiddle(
           logHeaders = false,

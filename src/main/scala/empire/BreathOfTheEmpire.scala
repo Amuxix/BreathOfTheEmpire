@@ -1,15 +1,13 @@
 package empire
 
 import cats.effect.{IO, IOApp, Resource}
-import cats.instances.option.*
 import cats.syntax.option.*
-import cats.syntax.traverse.*
 import discord.{Article, Discord, PublishCategory}
 import fs2.{Pipe, Stream}
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import wiki.{Category, ExtraInfo as WikiExtraInfo, MainCategory, Page, Wiki}
+import wiki.{Category, MainCategory, Page, Wiki}
 
 import java.nio.file.NoSuchFileException
 import java.time.Instant
@@ -44,13 +42,6 @@ object BreathOfTheEmpire extends IOApp.Simple:
     case Category.Rituals         => PublishCategory.Ritual
     case _                        => PublishCategory.Other
 
-  private def formatExtraInfo(extraInfo: WikiExtraInfo, uriLength: Int): String =
-    val remainingLength = 2000 - uriLength - 50 // a bit of an extra buffer
-    val truncatedText   =
-      if extraInfo.text.length > remainingLength then extraInfo.text.take(remainingLength) + "..." else extraInfo.text
-    val body            = truncatedText.split("\n").map("> " + _).mkString("\n")
-    s"$body\n\n"
-
   val toArticle: Pipe[IO, Page, Article] =
     _.map { case Page(title, mainCategory, extraCategories, uri, extraInfo) =>
       Article(
@@ -59,7 +50,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
         mainCategory.name,
         extraCategories.map(_.name),
         uri,
-        extraInfo.traverse(_.map(formatExtraInfo(_, uri.toString.length))),
+        extraInfo,
       )
     }
 
