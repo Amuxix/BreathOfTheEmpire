@@ -4,11 +4,12 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import fs2.Stream
 import io.circe.Decoder
-import org.http4s.Uri
+import org.http4s.{ProductComment, ProductId, Uri}
 import org.http4s.circe.CirceEntityDecoder.*
 import org.http4s.client.Client
-import org.http4s.client.middleware.Logger as LoggerMiddle
+import org.http4s.client.middleware.{GZip, Logger as LoggerMiddle}
 import org.http4s.ember.client.EmberClientBuilder
+import org.http4s.headers.`User-Agent`
 import org.typelevel.log4cats.Logger
 
 import java.time.Instant
@@ -23,26 +24,28 @@ class WikiClient(client: Client[IO], val wiki: Uri):
     "format"        -> "json",
     "formatversion" -> "2",
     "redirects"     -> "1",
+    "curtimestamp"  -> "true",
   )
 
-  def query[Q: Decoder](continueParam: String, params: (String, String)*)(using Logger[IO]): Stream[IO, Q] =
+  def query[Q: Decoder](continueParam: String, params: (String, String)*)(using
+    Logger[IO],
+  ): Stream[IO, (Instant, List[Q])] =
     val uri = API.withQueryParams(actionParams("query") ++ params)
     Stream
       .eval(client.expect[SingleQueryResponse[Q]](uri))
       .flatMap { queryResponse =>
         Stream.unfoldLoopEval(queryResponse) {
-          case SingleQueryResponse(Some(continue), data) =>
+          case SingleQueryResponse(Some(continue), timestamp, data) =>
             client
               .expect[SingleQueryResponse[Q]](uri.withQueryParam(continueParam, continue))
-              .map(next => data -> Some(next))
-          case SingleQueryResponse(None, data)           =>
-            IO.pure(data -> None)
+              .map(next => (timestamp, data) -> Some(next))
+          case SingleQueryResponse(None, timestamp, data)           =>
+            IO.pure((timestamp, data) -> None)
         }
       }
       .spaced(60.seconds / 200)
-      .flatMap(data => Stream.emits(data))
 
-  def createdEvents(from: Instant)(using Logger[IO]): Stream[IO, Logevent] =
+  def createdEvents(from: Instant)(using Logger[IO]): Stream[IO, (Instant, List[Logevent])] =
     query[Logevent](
       "lecontinue",
       "list"        -> "logevents",
@@ -60,7 +63,7 @@ class WikiClient(client: Client[IO], val wiki: Uri):
       "prop"    -> "categories",
       "cllimit" -> "500",
       "pageids" -> pageIds.mkString("|"),
-    )
+    ).flatMap((_, pages) => Stream.emits(pages))
 
   def pageUri(title: String): Uri = wiki / "empire-wiki" / title.replaceAll(" ", "_")
 
@@ -86,9 +89,12 @@ object WikiClient:
   def apply(API: Uri)(using Logger[IO]): Resource[IO, WikiClient] =
     EmberClientBuilder
       .default[IO]
+      .withHttp2
+      .withUserAgent(`User-Agent`(ProductId("breath-of-the-empire"), ProductComment("breathoftheempire@aifosi.top")))
       .build
       .evalTap(_ => Logger[IO].debug("WikiClient acquired"))
       .onFinalize(Logger[IO].debug("WikiClient released"))
+      .map(GZip()(_))
       .map(
         LoggerMiddle(
           logHeaders = false,

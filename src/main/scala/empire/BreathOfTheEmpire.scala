@@ -29,8 +29,8 @@ object BreathOfTheEmpire extends IOApp.Simple:
         _.fold(Logger[IO].debug("last instant not found"))(instant => Logger[IO].debug(s"last instant is $instant")),
       )
 
-  private def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
-    Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
+  private def writeLastInstant(path: Path, instant: Instant): IO[Unit] = IO.unit
+  // Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
 
   def publishCategory(category: MainCategory): PublishCategory = category match
     case Category.TradeWinds      => PublishCategory.WindOfFortune
@@ -54,33 +54,33 @@ object BreathOfTheEmpire extends IOApp.Simple:
       )
     }
 
-  def meteredInstantStream(
+  def startingInstant(
     lastInstant: Path,
     interval: FiniteDuration,
-  )(using Logger[IO]): Stream[IO, Instant] =
-    Stream
-      .eval(readLastInstant(lastInstant))
-      .flatMap {
-        case Some(instant) =>
-          Stream.emit(instant) ++ Stream.iterate(Instant.now)(_.plusSeconds(interval.toSeconds))
-        case None          =>
-          Stream.iterate(Instant.now.minusSeconds(interval.toSeconds))(_.plusSeconds(interval.toSeconds))
-      }
-      .meteredStartImmediately(interval)
+  )(using Logger[IO]): IO[Instant] =
+    readLastInstant(lastInstant).map(_.getOrElse(Instant.now.minusSeconds(interval.toSeconds)))
 
   private def publishNewArticlesCreatedAfter(
     wiki: Wiki,
     discord: Discord,
     instant: Instant,
-  )(using Logger[IO]): IO[Unit] =
+  )(using Logger[IO]): IO[Instant] =
     Logger[IO].debug(s"Looking for new articles since $instant...") *>
       wiki
         .pagesCreatedAfter(instant)
-        .through(toArticle)
-        .through(discord.publishArticle)
+        .evalMap { (instant, pageStream) =>
+          pageStream
+            .through(toArticle)
+            .through(discord.publishArticle)
+            .compile
+            .toList
+            .map(list => instant -> list.size)
+        }
         .compile
         .toList
-        .flatMap(list => Logger[IO].debug(s"Published ${list.size} articles."))
+        .flatMap { list =>
+          Logger[IO].debug(s"Published ${list.map(_(1)).sum} articles.").as(list.map(_(0)).max)
+        }
 
   def stream(
     wiki: Wiki,
@@ -88,8 +88,11 @@ object BreathOfTheEmpire extends IOApp.Simple:
     lastInstant: Path,
     interval: FiniteDuration,
   )(using Logger[IO]): Stream[IO, Unit] =
-    meteredInstantStream(lastInstant, interval)
-      .evalTap(publishNewArticlesCreatedAfter(wiki, discord, _))
+    Stream
+      .eval(startingInstant(lastInstant, interval))
+      .evalMap(publishNewArticlesCreatedAfter(wiki, discord, _))
+      .flatMap(Stream.iterateEval(_)(publishNewArticlesCreatedAfter(wiki, discord, _)))
+      .meteredStartImmediately(interval)
       .evalMap(_ => writeLastInstant(lastInstant, Instant.now))
 
   override def run: IO[Unit] =
