@@ -5,10 +5,12 @@ import cats.syntax.traverse.*
 import io.circe.{Decoder, HCursor}
 import io.circe.Decoder.Result
 
+import java.time.Instant
 import scala.xml.{Elem, XML}
 
 case class SingleQueryResponse[Q: Decoder](
   continue: Option[String],
+  timestamp: Instant,
   data: List[Q],
 )
 
@@ -28,31 +30,22 @@ object SingleQueryResponse:
 
   given [Q: Decoder] => Decoder[SingleQueryResponse[Q]] = (c: HCursor) =>
     for
-      continue <- extractContinue(c)
-      data     <- extractQuery(c)
-    yield SingleQueryResponse(continue, data)
+      continue     <- extractContinue(c)
+      data         <- extractQuery(c)
+      curtimestamp <- c.downField("curtimestamp").as[Instant]
+    yield SingleQueryResponse(continue, curtimestamp, data)
 
 case class Logevent(
-  // logid: Int,
-  // ns: Int,
   title: String,
   pageid: Int,
-  // logpage: Int,
-  // timestamp: String,
-  // comment: String,
-  // parsedcomment: String,
-  // tags: List[String],
 ) derives Decoder
 
 case class CategoryModel(
-  // ns: Int,
   title: String,
 ) derives Decoder
 
 case class WikiPage(
-  // ns: Int,
   title: Option[String],
-  // missing: Option[Boolean],
   pageid: Option[Int],
   categories: Option[List[CategoryModel]],
 ) derives Decoder:

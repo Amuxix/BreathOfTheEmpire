@@ -31,12 +31,10 @@ class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
         .through(mergeAllPageCategories)
     }
 
-  private def pageIDsCreatedAfter(startInstant: Instant): Stream[IO, Int] =
-    client
-      .createdEvents(startInstant)
-      .collect {
-        case logevent if !overviewRegex.matches(logevent.title) => logevent.pageid
-      }
+  private val filterOutOverviews: Pipe[IO, Logevent, Int] =
+    _.collect {
+      case logevent if !overviewRegex.matches(logevent.title) => logevent.pageid
+    }
 
   private val toPage: Pipe[IO, WikiPage, Page] =
     _.collect {
@@ -55,10 +53,18 @@ class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
         }
     }.evalMap(identity)
 
-  def pagesCreatedAfter(startInstant: Instant): Stream[IO, Page] =
-    pageIDsCreatedAfter(startInstant)
-      .through(categories)
-      .through(toPage)
+  def pagesCreatedAfter(startInstant: Instant): Stream[IO, (Instant, Stream[IO, Page])] =
+    client
+      .createdEvents(startInstant)
+      .map { (instant, pages) =>
+        val stream = Stream
+          .emits(pages)
+          .through(filterOutOverviews)
+          .through(categories)
+          .through(toPage)
+
+        instant -> stream
+      }
 
 object Wiki:
   def apply(config: Configuration)(using Logger[IO]) =
