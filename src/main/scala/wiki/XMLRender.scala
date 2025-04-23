@@ -28,7 +28,7 @@ object XMLRender:
         rendered + elem
           .attribute("href")
           .map(_.foldLeft("")(inner(wiki)))
-          .fold(childrenRendered)(href => s"[$childrenRendered](<${wiki / href}>)")
+          .fold(childrenRendered)(href => s"[$childrenRendered](<${wiki.addPath(href.dropWhile(_ == '/'))}>)")
       case elem: Elem if elem.label == "p" =>
         rendered + childrenRendered.replaceAll("\n", " ") + "\n" + "\n"
 

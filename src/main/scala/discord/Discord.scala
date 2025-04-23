@@ -51,7 +51,7 @@ class Discord(
         .setTitle(article.title)
         .setDescription(truncateExtraInfo(extraInfo, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n"))
         .setUrl(article.uri.toString)
-        .setFooter((article.mainCategory +: article.extraCategories).mkString("   "))
+        .setFooter((article.mainCategory +: article.extraCategories).mkString("  "))
         .setColor(Color(150, 255, 120))
         .build()
     }
