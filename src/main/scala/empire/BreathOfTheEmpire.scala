@@ -29,8 +29,8 @@ object BreathOfTheEmpire extends IOApp.Simple:
         _.fold(Logger[IO].debug("last instant not found"))(instant => Logger[IO].debug(s"last instant is $instant")),
       )
 
-  private def writeLastInstant(path: Path, instant: Instant): IO[Unit] = IO.unit
-  // Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
+  private def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
+    Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
 
   def publishCategory(category: MainCategory): PublishCategory = category match
     case Category.TradeWinds      => PublishCategory.WindOfFortune
