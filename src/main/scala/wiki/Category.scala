@@ -14,9 +14,12 @@ enum Category:
   case TradeWinds           extends Category with MainCategory with CustomName("Wind of Trade")
   case WindsOfFortune       extends Category with MainCategory with CustomName("Wind of Fortune")
   case ForeignNations       extends Category with ExtraCategory
+  case Axos                 extends Category with ExtraCategory
+  case Asavea               extends Category with ExtraCategory
   case Commonwealth         extends Category with ExtraCategory
   case Faraden              extends Category with ExtraCategory
   case IronConfederacy      extends Category with ExtraCategory with CustomName("Confederacy")
+  case Otkodov              extends Category with ExtraCategory
   case PrincipalitiesOfJarm extends Category with ExtraCategory with CustomName("Jarm")
   case SarcophanDelves      extends Category with ExtraCategory with CustomName("Delves")
   case Skoura               extends Category with ExtraCategory
