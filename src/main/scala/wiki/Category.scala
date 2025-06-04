@@ -28,6 +28,7 @@ enum Category:
   case Druj                 extends Category with ExtraCategory
   case Grendel              extends Category with ExtraCategory
   case Jotun                extends Category with ExtraCategory
+  case Thule                extends Category with ExtraCategory
   case Tonics               extends Category with MainCategory with CustomName("Potion Recipe")
   case Rituals              extends Category with MainCategory with CustomName("Ritual")
   case SpringRitual         extends Category with ExtraCategory with CustomName("Spring")
