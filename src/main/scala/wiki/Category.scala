@@ -12,23 +12,24 @@ enum Category:
   case MilitaryCouncil      extends Category with MainCategory with CustomName("Wind of War")
   case WindsOfMagic         extends Category with MainCategory with CustomName("Wind of Magic")
   case TradeWinds           extends Category with MainCategory with CustomName("Wind of Trade")
-  case WindsOfFortune       extends Category with MainCategory with CustomName("Wind of Fortune")
-  case ForeignNations       extends Category with ExtraCategory
+  case Appraisal            extends Category with MainCategory
+  case ForeignNations       extends Category with MainCategory
   case Axos                 extends Category with ExtraCategory
   case Asavea               extends Category with ExtraCategory
   case Commonwealth         extends Category with ExtraCategory
   case Faraden              extends Category with ExtraCategory
-  case IronConfederacy      extends Category with ExtraCategory with CustomName("Confederacy")
+  case IronConfederacy      extends Category with ExtraCategory
   case Otkodov              extends Category with ExtraCategory
-  case PrincipalitiesOfJarm extends Category with ExtraCategory with CustomName("Jarm")
-  case SarcophanDelves      extends Category with ExtraCategory with CustomName("Delves")
+  case PrincipalitiesOfJarm extends Category with ExtraCategory
+  case SarcophanDelves      extends Category with ExtraCategory
   case Skoura               extends Category with ExtraCategory
-  case SumaahRepublic       extends Category with ExtraCategory with CustomName("Sumaah")
+  case SumaahRepublic       extends Category with ExtraCategory
   case Barbarians           extends Category with ExtraCategory
   case Druj                 extends Category with ExtraCategory
   case Grendel              extends Category with ExtraCategory
   case Jotun                extends Category with ExtraCategory
   case Thule                extends Category with ExtraCategory
+  case WindsOfFortune       extends Category with MainCategory with CustomName("Wind of Fortune")
   case Tonics               extends Category with MainCategory with CustomName("Potion Recipe")
   case Rituals              extends Category with MainCategory with CustomName("Ritual")
   case SpringRitual         extends Category with ExtraCategory with CustomName("Spring")
@@ -79,7 +80,7 @@ enum Category:
   case VetoedSenateMotion   extends Category with ExtraCategory with CustomName("Vetoed")
   case Mandate              extends Category with MainCategory
 
-  lazy val name: String = toString.replaceAll("([a-z])([A-Z])", "$1 $2")
+  lazy val name: String = toString.replaceAll("([a-z])([A-Z])", "$1 $2").replaceAll("Of", "of")
 
 object Category:
   private lazy val valueMap = Category.values.map(v => v.toString.toLowerCase -> v).toMap

@@ -10,11 +10,14 @@ given ConfigReader[(DiscordID, List[(PublishCategory, DiscordID)])] = ConfigRead
 
 case class Configuration(
   token: String,
-  windsChannels: List[DiscordID],
+  windsOfFortuneChannels: List[DiscordID],
+  windsOfWarChannels: List[DiscordID],
+  diplomacyChannels: List[DiscordID],
+  appraisalsChannels: List[DiscordID],
   mandatesChannels: List[DiscordID],
   motionsChannels: List[DiscordID],
   ritualsChannels: List[DiscordID],
-  othersChannels: List[DiscordID],
+  itemsChannels: List[DiscordID],
   maxDescriptionLength: Int,
   tags: List[(DiscordID, List[(PublishCategory, DiscordID)])],
 ) derives ConfigReader:

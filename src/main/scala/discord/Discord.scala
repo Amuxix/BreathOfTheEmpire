@@ -14,11 +14,14 @@ import java.awt.Color
 import scala.concurrent.duration.*
 
 class Discord(
-  windsChannels: List[Channel],
+  windsOfFortuneChannels: List[Channel],
+  windsOfWarChannels: List[Channel],
+  diplomacyChannels: List[Channel],
+  appraisalsChannels: List[Channel],
   mandatesChannels: List[Channel],
   motionsChannels: List[Channel],
   ritualsChannels: List[Channel],
-  othersChannels: List[Channel],
+  itemsChannels: List[Channel],
   tags: Map[DiscordID, Map[PublishCategory, DiscordID]],
   maxDescriptionLength: Int,
 )(using Logger[IO]):
@@ -74,12 +77,14 @@ class Discord(
   private val assignPublishChannels: Pipe[IO, Article, (Channel, Article)] =
     _.flatMap { article =>
       (article.publishCategory match
-        case PublishCategory.WindOfFortune => Stream.emits(windsChannels)
-        case PublishCategory.WindOfWar     => Stream.emits(windsChannels)
+        case PublishCategory.WindOfFortune => Stream.emits(windsOfFortuneChannels)
+        case PublishCategory.WindOfWar     => Stream.emits(windsOfWarChannels)
+        case PublishCategory.Diplomacy     => Stream.emits(diplomacyChannels)
+        case PublishCategory.Appraisal     => Stream.emits(appraisalsChannels)
         case PublishCategory.Mandate       => Stream.emits(mandatesChannels)
         case PublishCategory.Motion        => Stream.emits(motionsChannels)
         case PublishCategory.Ritual        => Stream.emits(ritualsChannels)
-        case PublishCategory.Other         => Stream.emits(othersChannels)
+        case PublishCategory.Item          => Stream.emits(itemsChannels)
       )
         .map(_ -> article)
     }
@@ -100,6 +105,7 @@ class Discord(
 object Discord:
   def warnMissingGuilds(
     guilds: Map[Long, String],
+  )(
     channels: List[Channel],
     what: String,
   )(using Logger[IO]): IO[Unit] =
@@ -109,43 +115,42 @@ object Discord:
 
   def warnMissingGuildChannels(
     client: DiscordClient,
-    windsChannels: List[Channel],
-    mandatesChannels: List[Channel],
-    motionsChannels: List[Channel],
-    ritualsChannels: List[Channel],
-    othersChannels: List[Channel],
+    channels: (List[Channel], String)*,
   )(using Logger[IO]): IO[Unit] =
     val guilds = client.guilds.map(guild => guild.getIdLong -> guild.getName).toMap
-    List(
-      warnMissingGuilds(guilds, windsChannels, "Winds"),
-      warnMissingGuilds(guilds, mandatesChannels, "Mandates"),
-      warnMissingGuilds(guilds, motionsChannels, "Motions"),
-      warnMissingGuilds(guilds, ritualsChannels, "Rituals"),
-      warnMissingGuilds(guilds, othersChannels, "Other Articles"),
-    ).sequence_
+    channels.toList.traverse_(warnMissingGuilds(guilds))
 
   def apply(config: Configuration)(using Logger[IO]): Resource[IO, Discord] =
     DiscordClient(config.token).evalMap { client =>
       for
-        windsChannels    <- client.channels(config.windsChannels)
-        mandatesChannels <- client.channels(config.mandatesChannels)
-        motionsChannels  <- client.channels(config.motionsChannels)
-        ritualsChannels  <- client.channels(config.ritualsChannels)
-        othersChannels   <- client.channels(config.othersChannels)
-        _                <- warnMissingGuildChannels(
-                              client,
-                              windsChannels,
-                              mandatesChannels,
-                              motionsChannels,
-                              ritualsChannels,
-                              othersChannels,
-                            )
+        windsOfFortuneChannels <- client.channels(config.windsOfFortuneChannels)
+        windsOfWarChannels     <- client.channels(config.windsOfWarChannels)
+        diplomacyChannels      <- client.channels(config.diplomacyChannels)
+        appraisalsChannels     <- client.channels(config.appraisalsChannels)
+        mandatesChannels       <- client.channels(config.mandatesChannels)
+        motionsChannels        <- client.channels(config.motionsChannels)
+        ritualsChannels        <- client.channels(config.ritualsChannels)
+        itemsChannels          <- client.channels(config.itemsChannels)
+        _                      <- warnMissingGuildChannels(
+                                    client,
+                                    (windsOfFortuneChannels, "Winds of Fortune"),
+                                    (windsOfWarChannels, "Winds of War"),
+                                    (diplomacyChannels, "Diplomacy"),
+                                    (appraisalsChannels, "Appraisals"),
+                                    (mandatesChannels, "Mandates"),
+                                    (motionsChannels, "Motions"),
+                                    (ritualsChannels, "Rituals"),
+                                    (itemsChannels, "Items"),
+                                  )
       yield new Discord(
-        windsChannels,
+        windsOfFortuneChannels,
+        windsOfWarChannels,
+        diplomacyChannels,
+        appraisalsChannels,
         mandatesChannels,
         motionsChannels,
         ritualsChannels,
-        othersChannels,
+        itemsChannels,
         config.tagMap,
         config.maxDescriptionLength,
       )

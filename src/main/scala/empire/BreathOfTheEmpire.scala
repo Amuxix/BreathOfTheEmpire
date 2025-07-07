@@ -40,7 +40,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
     case Category.Mandate         => PublishCategory.Mandate
     case Category.SenateMotion    => PublishCategory.Motion
     case Category.Rituals         => PublishCategory.Ritual
-    case _                        => PublishCategory.Other
+    case _                        => PublishCategory.Item
 
   val toArticle: Pipe[IO, Page, Article] =
     _.map { case Page(title, mainCategory, extraCategories, uri, extraInfo) =>
