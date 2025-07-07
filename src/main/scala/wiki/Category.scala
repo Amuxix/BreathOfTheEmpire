@@ -21,7 +21,7 @@ enum Category:
   case IronConfederacy      extends Category with ExtraCategory
   case Otkodov              extends Category with ExtraCategory
   case PrincipalitiesOfJarm extends Category with ExtraCategory
-  case SarcophanDelves      extends Category with ExtraCategory
+  case Sarcophan            extends Category with ExtraCategory with CustomName("Sarcophan Delves")
   case Skoura               extends Category with ExtraCategory
   case SumaahRepublic       extends Category with ExtraCategory
   case Barbarians           extends Category with ExtraCategory

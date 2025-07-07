@@ -70,4 +70,4 @@ object XMLRender:
       case _ => ""
 
   def render(node: Node, wiki: Uri): IO[String] =
-    IO.blocking(inner(wiki)("", node).replaceFirst("\n*#+ [a-zA-Z ]+\n*", ""))
+    IO.blocking(inner(wiki)("", node).replaceFirst("\n*#+ [^\n]+\n*", ""))

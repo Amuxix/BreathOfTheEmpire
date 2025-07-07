@@ -4,8 +4,10 @@ import cats.instances.option.*
 import cats.syntax.traverse.*
 import io.circe.{Decoder, HCursor}
 import io.circe.Decoder.Result
+import wiki.Wiki.yearSeasonRegex
 
 import java.time.Instant
+import scala.util.Try
 import scala.xml.{Elem, XML}
 
 case class SingleQueryResponse[Q: Decoder](
@@ -49,9 +51,13 @@ case class WikiPage(
   pageid: Option[Int],
   categories: Option[List[CategoryModel]],
 ) derives Decoder:
-  lazy val parsedCategories: Set[Category] =
-    categories.toSet.flatten
-      .flatMap(category => Category.fromString(category.title.replace("Category:", "")))
+  private lazy val categorySet = categories.toSet.flatten.map(_.title.replace("Category:", ""))
+
+  lazy val yearAndSeason = categorySet.collectFirst { case yearSeasonRegex(year, season) =>
+    year.toIntOption.zip(Try(Season.valueOf(season)).toOption)
+  }.flatten
+
+  lazy val parsedCategories: Set[Category] = categorySet.flatMap(Category.fromString)
 
   lazy val mainCategories = parsedCategories.collect { case c: MainCategory => c }
 

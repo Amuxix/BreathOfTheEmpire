@@ -5,6 +5,8 @@ import org.http4s.Uri
 
 case class Page(
   title: String,
+  year: Int,
+  season: Season,
   mainCategory: Category & MainCategory,
   extraCategories: List[Category & ExtraCategory],
   uri: Uri,

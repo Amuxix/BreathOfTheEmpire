@@ -3,12 +3,13 @@ package wiki
 import cats.effect.IO
 import fs2.{Pipe, Stream}
 import org.typelevel.log4cats.Logger
+import wiki.Wiki.yearSeasonRegex
 
 import java.time.Instant
+import scala.util.matching.Regex
 
 class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
-  private val overviewRegex =
-    "\\d{3}YE (Winter|Autumn|Spring|Summer) (Solstice|Equinox) (winds of (war|fortune)|Military Council orders)".r
+  private val overviewRegex = s"$yearSeasonRegex (Solstice|Equinox) (winds of (war|fortune)|Military Council orders)".r
 
   private val mergeAllPageCategories: Pipe[IO, WikiPage, WikiPage] = pages =>
     Stream.evalSeq {
@@ -39,13 +40,15 @@ class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
   private val toPage: Pipe[IO, WikiPage, Page] =
     _.collect {
       case page @ WikiPage(Some(title), Some(pageID), _)
-          if !overviewRegex.matches(title) && page.mainCategories.nonEmpty =>
-        val mainCategory = page.mainCategories.minBy(_.ordinal)
+          if !overviewRegex.matches(title) && page.mainCategories.nonEmpty && page.yearAndSeason.nonEmpty =>
+        val (year, season) = page.yearAndSeason.get
 
         client.pageSection(pageID, 1).memoize.map { extraInfo =>
           Page(
             title,
-            mainCategory,
+            year,
+            season,
+            page.mainCategories.minBy(_.ordinal),
             page.parsedCategories.collect { case c: ExtraCategory => c }.toList.sortBy(_.ordinal),
             client.pageUri(title),
             extraInfo,
@@ -67,5 +70,7 @@ class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
       }
 
 object Wiki:
+  val yearSeasonRegex: Regex = "(\\d{3})YE (Winter|Autumn|Spring|Summer)".r
+
   def apply(config: Configuration)(using Logger[IO]) =
     WikiClient(config.empireUri).map(new Wiki(_, config.categoryBatchSize))

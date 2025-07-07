@@ -29,23 +29,25 @@ object BreathOfTheEmpire extends IOApp.Simple:
         _.fold(Logger[IO].debug("last instant not found"))(instant => Logger[IO].debug(s"last instant is $instant")),
       )
 
-  private def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
-    Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
-
   def publishCategory(category: MainCategory): PublishCategory = category match
-    case Category.TradeWinds      => PublishCategory.WindOfFortune
-    case Category.WindsOfMagic    => PublishCategory.WindOfFortune
-    case Category.WindsOfFortune  => PublishCategory.WindOfFortune
     case Category.MilitaryCouncil => PublishCategory.WindOfWar
-    case Category.Mandate         => PublishCategory.Mandate
-    case Category.SenateMotion    => PublishCategory.Motion
+    case Category.WindsOfMagic    => PublishCategory.WindOfFortune
+    case Category.TradeWinds      => PublishCategory.WindOfFortune
+    case Category.Appraisal       => PublishCategory.Appraisal
+    case Category.ForeignNations  => PublishCategory.Diplomacy
+    case Category.WindsOfFortune  => PublishCategory.WindOfFortune
+    case Category.Tonics          => PublishCategory.Item
     case Category.Rituals         => PublishCategory.Ritual
-    case _                        => PublishCategory.Item
+    case Category.MagicItems      => PublishCategory.Item
+    case Category.SenateMotion    => PublishCategory.Motion
+    case Category.Mandate         => PublishCategory.Mandate
 
   val toArticle: Pipe[IO, Page, Article] =
-    _.map { case Page(title, mainCategory, extraCategories, uri, extraInfo) =>
+    _.map { case Page(title, year, season, mainCategory, extraCategories, uri, extraInfo) =>
       Article(
         title,
+        year,
+        season.toString,
         publishCategory(mainCategory),
         mainCategory.name,
         extraCategories.map(_.name),

@@ -5,6 +5,8 @@ import org.http4s.Uri
 
 case class Article(
   title: String,
+  year: Int,
+  season: String,
   publishCategory: PublishCategory,
   mainCategory: String,
   extraCategories: List[String],

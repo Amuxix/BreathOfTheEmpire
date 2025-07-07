@@ -25,6 +25,9 @@ class Discord(
   tags: Map[DiscordID, Map[PublishCategory, DiscordID]],
   maxDescriptionLength: Int,
 )(using Logger[IO]):
+  private def removeLinksFromText(text: String): String =
+    text.replaceAll("\\[(.+?)]\\(<.+?>\\)", "$1")
+
   private def truncateExtraInfo(extraInfo: String, maxSize: Int): String =
     if extraInfo.length <= maxSize then extraInfo
     else
@@ -48,24 +51,28 @@ class Discord(
         }(0)
         .mkString("", "\n", "\n\n### ...")
 
-  private def messageEmbed(article: Article): IO[MessageEmbed] =
-    article.extraInfo.map { extraInfo =>
-      new EmbedBuilder()
-        .setTitle(article.title)
-        .setDescription(truncateExtraInfo(extraInfo, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n"))
-        .setUrl(article.uri.toString)
-        .setFooter((article.mainCategory +: article.extraCategories).mkString("  "))
-        .setColor(Color(150, 255, 120))
-        .build()
-    }
+  private def messageEmbed(article: Article, removeLinks: Boolean): IO[MessageEmbed] =
+    article.extraInfo
+      .map(extraInfo => if removeLinks then removeLinksFromText(extraInfo) else extraInfo)
+      .map { extraInfo =>
+        new EmbedBuilder()
+          .setTitle(article.title)
+          .setDescription(truncateExtraInfo(extraInfo, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n"))
+          .setUrl(article.uri.toString)
+          .setFooter(
+            (s"${article.season} ${article.year}" +: article.mainCategory +: article.extraCategories).mkString("  "),
+          )
+          .setColor(Color(150, 255, 120))
+          .build()
+      }
 
   private def publishArticleAsText(channel: TextChannel, article: Article): IO[Unit] =
-    messageEmbed(article).flatMap(channel.sendEmbed).void
+    messageEmbed(article, removeLinks = true).flatMap(channel.sendEmbed).void
 
   private def publishArticleAsPost(channel: ForumChannel, article: Article): IO[Unit] =
     val tagID = tags.get(channel.discordID).flatMap(_.get(article.publishCategory)).toList
     for
-      embed <- messageEmbed(article)
+      embed <- messageEmbed(article, removeLinks = false)
       _     <- channel.createForumPost(article.title, embed, tagID*)
     yield ()
 
