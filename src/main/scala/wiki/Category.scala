@@ -14,6 +14,7 @@ enum Category:
   case TradeWinds          extends Category with MainCategory with CustomName("Wind of Trade")
   case Appraisal           extends Category with MainCategory
   case ForeignNations      extends Category with MainCategory
+  case Plenipotentiary     extends Category with MainCategory
   case Axos                extends Category with ExtraCategory
   case Asavea              extends Category with ExtraCategory
   case Commonwealth        extends Category with ExtraCategory

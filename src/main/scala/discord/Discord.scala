@@ -20,7 +20,7 @@ class Discord(
   appraisalsChannels: List[Channel],
   mandatesChannels: List[Channel],
   motionsChannels: List[Channel],
-  ritualsChannels: List[Channel],
+  magicChannels: List[Channel],
   itemsChannels: List[Channel],
   tags: Map[DiscordID, Map[PublishCategory, DiscordID]],
   maxDescriptionLength: Int,
@@ -90,7 +90,7 @@ class Discord(
         case PublishCategory.Appraisal     => Stream.emits(appraisalsChannels)
         case PublishCategory.Mandate       => Stream.emits(mandatesChannels)
         case PublishCategory.Motion        => Stream.emits(motionsChannels)
-        case PublishCategory.Ritual        => Stream.emits(ritualsChannels)
+        case PublishCategory.Magic         => Stream.emits(magicChannels)
         case PublishCategory.Item          => Stream.emits(itemsChannels)
       )
         .map(_ -> article)
@@ -136,7 +136,7 @@ object Discord:
         appraisalsChannels     <- client.channels(config.appraisalsChannels)
         mandatesChannels       <- client.channels(config.mandatesChannels)
         motionsChannels        <- client.channels(config.motionsChannels)
-        ritualsChannels        <- client.channels(config.ritualsChannels)
+        magicChannels          <- client.channels(config.magicChannels)
         itemsChannels          <- client.channels(config.itemsChannels)
         _                      <- warnMissingGuildChannels(
                                     client,
@@ -146,7 +146,7 @@ object Discord:
                                     (appraisalsChannels, "Appraisals"),
                                     (mandatesChannels, "Mandates"),
                                     (motionsChannels, "Motions"),
-                                    (ritualsChannels, "Rituals"),
+                                    (magicChannels, "Magic"),
                                     (itemsChannels, "Items"),
                                   )
       yield new Discord(
@@ -156,7 +156,7 @@ object Discord:
         appraisalsChannels,
         mandatesChannels,
         motionsChannels,
-        ritualsChannels,
+        magicChannels,
         itemsChannels,
         config.tagMap,
         config.maxDescriptionLength,

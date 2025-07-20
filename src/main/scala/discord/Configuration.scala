@@ -16,7 +16,7 @@ case class Configuration(
   appraisalsChannels: List[DiscordID],
   mandatesChannels: List[DiscordID],
   motionsChannels: List[DiscordID],
-  ritualsChannels: List[DiscordID],
+  magicChannels: List[DiscordID],
   itemsChannels: List[DiscordID],
   maxDescriptionLength: Int,
   tags: List[(DiscordID, List[(PublishCategory, DiscordID)])],

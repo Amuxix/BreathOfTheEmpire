@@ -33,17 +33,18 @@ object BreathOfTheEmpire extends IOApp.Simple:
     Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
 
   def publishCategory(category: MainCategory): PublishCategory = category match
+    case Category.WindsOfMagic    => PublishCategory.Magic
+    case Category.Plenipotentiary => PublishCategory.Magic
+    case Category.Rituals         => PublishCategory.Magic
     case Category.MilitaryCouncil => PublishCategory.WindOfWar
-    case Category.WindsOfMagic    => PublishCategory.WindOfFortune
-    case Category.TradeWinds      => PublishCategory.WindOfFortune
     case Category.Appraisal       => PublishCategory.Appraisal
     case Category.ForeignNations  => PublishCategory.Diplomacy
-    case Category.WindsOfFortune  => PublishCategory.WindOfFortune
     case Category.Tonics          => PublishCategory.Item
-    case Category.Rituals         => PublishCategory.Ritual
     case Category.MagicItems      => PublishCategory.Item
     case Category.SenateMotion    => PublishCategory.Motion
     case Category.Mandate         => PublishCategory.Mandate
+    case Category.TradeWinds      => PublishCategory.WindOfFortune
+    case Category.WindsOfFortune  => PublishCategory.WindOfFortune
 
   val toArticle: Pipe[IO, Page, Article] =
     _.map { case Page(title, year, season, mainCategory, extraCategories, uri, extraInfo) =>
