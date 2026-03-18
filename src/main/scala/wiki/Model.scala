@@ -2,6 +2,7 @@ package wiki
 
 import cats.instances.option.*
 import cats.syntax.traverse.*
+import empire.Season
 import io.circe.{Decoder, HCursor}
 import io.circe.Decoder.Result
 import wiki.Wiki.yearSeasonRegex

@@ -51,7 +51,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
       Article(
         title,
         year,
-        season.toString,
+        season,
         publishCategory(mainCategory),
         mainCategory.name,
         extraCategories.map(_.name),

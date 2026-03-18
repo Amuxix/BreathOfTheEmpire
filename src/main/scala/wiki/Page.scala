@@ -1,6 +1,7 @@
 package wiki
 
 import cats.effect.IO
+import empire.Season
 import org.http4s.Uri
 
 case class Page(

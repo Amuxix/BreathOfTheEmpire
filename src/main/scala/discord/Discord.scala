@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.instances.list.*
 import cats.syntax.foldable.*
+import empire.Season
 import fs2.Pipe
 import fs2.Stream
 import net.dv8tion.jda.api.EmbedBuilder
@@ -51,6 +52,13 @@ class Discord(
         }(0)
         .mkString("", "\n", "\n\n### ...")
 
+  extension (season: Season)
+    def toColor: Color = season match
+      case Season.Winter => Color(186, 225, 255)
+      case Season.Autumn => Color(255, 223, 186)
+      case Season.Spring => Color(255, 205, 214)
+      case Season.Summer => Color(255, 255, 186)
+
   private def messageEmbed(article: Article, removeLinks: Boolean): IO[MessageEmbed] =
     article.extraInfo
       .map(extraInfo => if removeLinks then removeLinksFromText(extraInfo) else extraInfo)
@@ -62,7 +70,7 @@ class Discord(
           .setFooter(
             (s"${article.season} ${article.year}" +: article.mainCategory +: article.extraCategories).mkString("  "),
           )
-          .setColor(Color(150, 255, 120))
+          .setColor(article.season.toColor)
           .build()
       }
 
