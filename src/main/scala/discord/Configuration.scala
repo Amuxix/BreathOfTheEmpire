@@ -1,6 +1,5 @@
 package discord
 
-import cats.instances.list.*
 import discord.DiscordID
 import pureconfig.ConfigReader
 import pureconfig.error.ConfigReaderFailures

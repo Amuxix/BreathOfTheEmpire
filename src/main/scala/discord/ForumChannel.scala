@@ -6,8 +6,6 @@ import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel as JDAForumCha
 import net.dv8tion.jda.api.entities.channel.forums.ForumTagSnowflake
 import net.dv8tion.jda.api.utils.messages.{MessageCreateBuilder, MessageCreateData}
 
-import scala.compiletime.asMatchable
-
 class ForumChannel(channel: JDAForumChannel, guild: Guild) extends Channel(channel, guild):
   def createForumPost(title: String, messageCreate: MessageCreateData, tagIDs: DiscordID*): IO[Unit] =
     val tag = tagIDs.map(id => ForumTagSnowflake.fromId(id.toLong))

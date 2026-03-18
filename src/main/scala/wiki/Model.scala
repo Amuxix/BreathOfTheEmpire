@@ -11,7 +11,7 @@ import java.time.Instant
 import scala.util.Try
 import scala.xml.{Elem, XML}
 
-case class SingleQueryResponse[Q: Decoder](
+case class SingleQueryResponse[Q](
   continue: Option[String],
   timestamp: Instant,
   data: List[Q],

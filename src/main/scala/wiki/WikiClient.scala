@@ -27,9 +27,7 @@ class WikiClient(client: Client[IO], val wiki: Uri):
     "curtimestamp"  -> "true",
   )
 
-  def query[Q: Decoder](continueParam: String, params: (String, String)*)(using
-    Logger[IO],
-  ): Stream[IO, (Instant, List[Q])] =
+  def query[Q: Decoder](continueParam: String, params: (String, String)*): Stream[IO, (Instant, List[Q])] =
     val uri = API.withQueryParams(actionParams("query") ++ params)
     Stream
       .eval(client.expect[SingleQueryResponse[Q]](uri))
@@ -45,7 +43,7 @@ class WikiClient(client: Client[IO], val wiki: Uri):
       }
       .spaced(60.seconds / 200)
 
-  def createdEvents(from: Instant)(using Logger[IO]): Stream[IO, (Instant, List[Logevent])] =
+  def createdEvents(from: Instant): Stream[IO, (Instant, List[Logevent])] =
     query[Logevent](
       "lecontinue",
       "list"        -> "logevents",
@@ -57,7 +55,7 @@ class WikiClient(client: Client[IO], val wiki: Uri):
       "lestart"     -> from.truncatedTo(ChronoUnit.MICROS).toString,
     )
 
-  def pagesCategories(pageIds: List[Int])(using Logger[IO]): Stream[IO, WikiPage] =
+  def pagesCategories(pageIds: List[Int]): Stream[IO, WikiPage] =
     query[WikiPage](
       "clcontinue",
       "prop"    -> "categories",

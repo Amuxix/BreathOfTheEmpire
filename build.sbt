@@ -1,6 +1,7 @@
 name := "BreathOfTheEmpire"
 
-val scala3Version = "3.6.4"
+val scala3Version = "3.7.4"
+val javaVersion   = "25"
 ThisBuild / scalaVersion := scala3Version
 
 // Used for scala fix
@@ -13,7 +14,7 @@ ThisBuild / scalafmtOnCompile := true
 enablePlugins(JavaAppPackaging, DockerPlugin, AshScriptPlugin)
 
 ThisBuild / publish / skip                      := true
-ThisBuild / githubWorkflowJavaVersions          := Seq(JavaSpec.temurin("17"))
+ThisBuild / githubWorkflowJavaVersions          := Seq(JavaSpec.temurin(javaVersion))
 ThisBuild / crossScalaVersions                  := List(scala3Version)
 ThisBuild / githubWorkflowIncludeClean          := false
 ThisBuild / githubWorkflowTargetBranches        := Seq("master")
@@ -50,7 +51,7 @@ Universal / javaOptions            ++= Seq(
 
 Docker / dockerRepository := Some("amuxix")
 dockerUpdateLatest        := true
-dockerBaseImage           := "openjdk:17-jdk"
+dockerBaseImage           := s"eclipse-temurin:$javaVersion-jre"
 publish / skip            := false
 dockerBuildOptions        += "--platform=linux/amd64"
 
@@ -100,23 +101,23 @@ libraryDependencies ++= Seq(
   circeParser,
 )
 
-lazy val catsEffect        = "org.typelevel"         %% "cats-effect"                % "3.6.1"
-lazy val circe             = "io.circe"              %% "circe-core"                 % "0.14.12"
+lazy val catsEffect        = "org.typelevel"         %% "cats-effect"                % "3.7.0"
+lazy val circe             = "io.circe"              %% "circe-core"                 % "0.14.15"
 lazy val circeParser       = circe.organization      %% "circe-parser"               % circe.revision
 lazy val catsRetry         = "com.github.cb372"      %% "cats-retry"                 % "4.0.0"
-lazy val fs2               = "co.fs2"                %% "fs2-core"                   % "3.12.0"
+lazy val fs2               = "co.fs2"                %% "fs2-core"                   % "3.13.0"
 lazy val fs2IO             = fs2.organization        %% "fs2-io"                     % fs2.revision
-lazy val jda               = "net.dv8tion"            % "JDA"                        % "5.3.2"
-lazy val log4cats          = "org.typelevel"         %% "log4cats-slf4j"             % "2.7.0"
-lazy val logbackClassic    = "ch.qos.logback"         % "logback-classic"            % "1.5.18"
-lazy val pureconfig        = "com.github.pureconfig" %% "pureconfig-core"            % "0.17.8"
+lazy val jda               = "net.dv8tion"            % "JDA"                        % "6.3.2"
+lazy val log4cats          = "org.typelevel"         %% "log4cats-slf4j"             % "2.8.0"
+lazy val logbackClassic    = "ch.qos.logback"         % "logback-classic"            % "1.5.32"
+lazy val pureconfig        = "com.github.pureconfig" %% "pureconfig-core"            % "0.17.10"
 lazy val pureconfigCE      = pureconfig.organization %% "pureconfig-cats-effect"     % pureconfig.revision
-lazy val postgres          = "org.postgresql"         % "postgresql"                 % "42.7.5"
-lazy val flyway            = "org.flywaydb"           % "flyway-core"                % "11.7.0"
+lazy val postgres          = "org.postgresql"         % "postgresql"                 % "42.7.10"
+lazy val flyway            = "org.flywaydb"           % "flyway-core"                % "12.1.1"
 lazy val flywayPostgres    = flyway.organization      % "flyway-database-postgresql" % flyway.revision
-lazy val doobie            = "org.tpolecat"          %% "doobie-core"                % "1.0.0-RC8"
+lazy val doobie            = "org.tpolecat"          %% "doobie-core"                % "1.0.0-RC12"
 lazy val doobiePostgres    = doobie.organization     %% "doobie-postgres"            % doobie.revision
-lazy val http4s            = "org.http4s"            %% "http4s-core"                % "0.23.30"
+lazy val http4s            = "org.http4s"            %% "http4s-core"                % "0.23.33"
 lazy val http4sDSL         = http4s.organization     %% "http4s-dsl"                 % http4s.revision
 lazy val http4sCirce       = http4s.organization     %% "http4s-circe"               % http4s.revision
 lazy val http4sEmberClient = http4s.organization     %% "http4s-ember-client"        % http4s.revision

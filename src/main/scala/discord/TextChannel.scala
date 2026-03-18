@@ -6,7 +6,6 @@ import net.dv8tion.jda.api.entities.channel.concrete.TextChannel as JDATextChann
 import net.dv8tion.jda.api.utils.FileUpload
 
 import java.io.File
-import scala.compiletime.asMatchable
 
 class TextChannel(channel: JDATextChannel, guild: Guild) extends Channel(channel, guild):
   def sendMessage(string: String): IO[Message]    =
