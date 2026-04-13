@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.instances.list.*
 import cats.syntax.foldable.*
-import empire.Season
+import empire.{Opportunity, OpportunityType, Season}
 import fs2.Pipe
 import fs2.Stream
 import net.dv8tion.jda.api.EmbedBuilder
@@ -12,18 +12,18 @@ import net.dv8tion.jda.api.entities.MessageEmbed
 import org.typelevel.log4cats.Logger
 
 import java.awt.Color
-import scala.concurrent.duration.*
 
 class Discord(
-  windsOfFortuneChannels: List[Channel],
-  windsOfWarChannels: List[Channel],
-  diplomacyChannels: List[Channel],
-  appraisalsChannels: List[Channel],
-  mandatesChannels: List[Channel],
-  motionsChannels: List[Channel],
-  magicChannels: List[Channel],
-  itemsChannels: List[Channel],
-  tags: Map[DiscordID, Map[PublishCategory, DiscordID]],
+  windsOfFortuneChannels: List[TextChannel],
+  windsOfWarChannels: List[TextChannel],
+  diplomacyChannels: List[TextChannel],
+  appraisalsChannels: List[TextChannel],
+  mandatesChannels: List[TextChannel],
+  motionsChannels: List[TextChannel],
+  magicChannels: List[TextChannel],
+  itemsChannels: List[TextChannel],
+  titlesChannels: List[TextChannel],
+  commissionsChannels: List[TextChannel],
   maxDescriptionLength: Int,
 )(using Logger[IO]):
   private def removeLinksFromText(text: String): String =
@@ -59,63 +59,79 @@ class Discord(
       case Season.Spring => Color(255, 205, 214)
       case Season.Summer => Color(255, 255, 186)
 
-  private def messageEmbed(article: Article, removeLinks: Boolean): IO[MessageEmbed] =
+  private def articleToMessageEmbed(article: Article): IO[MessageEmbed] =
     article.extraInfo
-      .map(extraInfo => if removeLinks then removeLinksFromText(extraInfo) else extraInfo)
+      .map(extraInfo => removeLinksFromText(extraInfo))
       .map { extraInfo =>
         new EmbedBuilder()
           .setTitle(article.title)
           .setDescription(truncateExtraInfo(extraInfo, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n"))
           .setUrl(article.uri.toString)
-          .setFooter(
-            (s"${article.season} ${article.year}" +: article.mainCategory +: article.extraCategories).mkString("  "),
-          )
+          .setFooter(article.categories.mkString("  "))
           .setColor(article.season.toColor)
           .build()
       }
 
-  private def publishArticleAsText(channel: TextChannel, article: Article): IO[Unit] =
-    messageEmbed(article, removeLinks = true).flatMap(channel.sendEmbed).void
-
-  private def publishArticleAsPost(channel: ForumChannel, article: Article): IO[Unit] =
-    val tagID = tags.get(channel.discordID).flatMap(_.get(article.publishCategory)).toList
-    for
-      embed <- messageEmbed(article, removeLinks = false)
-      _     <- channel.createForumPost(article.title, embed, tagID*)
-    yield ()
-
-  private val log: Pipe[IO, (Channel, Article), (Channel, Article)] =
-    _.evalTap { (channel, article) =>
-      Logger[IO].info(s"Publishing ${article.show} to ${channel.guild.getName}/${channel.name}")
+  private def opportunityToMessageEmbed(opportunity: Opportunity): IO[MessageEmbed] =
+    IO {
+      new EmbedBuilder()
+        .setTitle(opportunity.title)
+        .setDescription(opportunity.body)
+        .setUrl(opportunity.source.toString)
+        .setFooter(s"${opportunity.season} ${opportunity.year}  ${opportunity.`type`}")
+        .setColor(opportunity.season.toColor)
+        .build()
     }
 
-  private val assignPublishChannels: Pipe[IO, Article, (Channel, Article)] =
-    _.flatMap { article =>
-      (article.publishCategory match
-        case PublishCategory.WindOfFortune => Stream.emits(windsOfFortuneChannels)
-        case PublishCategory.WindOfWar     => Stream.emits(windsOfWarChannels)
-        case PublishCategory.Diplomacy     => Stream.emits(diplomacyChannels)
-        case PublishCategory.Appraisal     => Stream.emits(appraisalsChannels)
-        case PublishCategory.Mandate       => Stream.emits(mandatesChannels)
-        case PublishCategory.Motion        => Stream.emits(motionsChannels)
-        case PublishCategory.Magic         => Stream.emits(magicChannels)
-        case PublishCategory.Item          => Stream.emits(itemsChannels)
-      )
-        .map(_ -> article)
+  private def assignArticleToPublishChannels(article: Article): List[TextChannel] =
+    article.publishCategory match
+      case PublishCategory.WindOfFortune => windsOfFortuneChannels
+      case PublishCategory.WindOfWar     => windsOfWarChannels
+      case PublishCategory.Diplomacy     => diplomacyChannels
+      case PublishCategory.Appraisal     => appraisalsChannels
+      case PublishCategory.Mandate       => mandatesChannels
+      case PublishCategory.Motion        => motionsChannels
+      case PublishCategory.Magic         => magicChannels
+      case PublishCategory.Item          => itemsChannels
+
+  private def assignOpportunitiesToPublishChannels(opportunity: Opportunity): List[TextChannel] =
+    opportunity.`type` match
+      case OpportunityType.Title      => titlesChannels
+      case OpportunityType.Commission => commissionsChannels
+
+  private def logArticlePublishing(article: Article, channel: TextChannel) =
+    Logger[IO].info(s"Publishing ${article.show} to ${channel.guild.getName}/${channel.name}")
+
+  private def logOpportunityPublishing(opportunity: Opportunity, channel: TextChannel) =
+    Logger[IO].info(s"Publishing ${opportunity.title} to ${channel.guild.getName}/${channel.name}")
+
+  private def linkToPublishChannels[A](
+    assignChannels: A => List[TextChannel],
+    toEmbed: A => IO[MessageEmbed],
+  ): Pipe[IO, A, (A, TextChannel, MessageEmbed)] =
+    _.flatMap { a =>
+      val channels = assignChannels(a)
+      if channels.nonEmpty then
+        Stream.eval(toEmbed(a)).flatMap(embed => Stream.emits(channels).map(channel => (a, channel, embed)))
+      else Stream.empty
     }
 
-  private val publish: Pipe[IO, (Channel, Article), Unit] =
-    _.meteredStartImmediately((1 / 10).seconds).evalMap {
-      case (channel: TextChannel, article)  => publishArticleAsText(channel, article)
-      case (channel: ForumChannel, article) => publishArticleAsPost(channel, article)
-      case _                                => IO.unit
-    }
-
-  val publishArticle: Pipe[IO, Article, Unit] =
-    _.through(assignPublishChannels)
-      .through(log)
-      .through(publish)
+  def publish[A](
+    assignChannels: A => List[TextChannel],
+    toEmbed: A => IO[MessageEmbed],
+    log: (A, TextChannel) => IO[Unit],
+  ): Pipe[IO, A, Unit] =
+    _.through(linkToPublishChannels(assignChannels, toEmbed))
+      .evalTap((a, channel, _) => log(a, channel))
+      .evalMap((_, channel, embed) => channel.sendEmbed(embed))
       .as(())
+
+  val publishAll: Pipe[IO, Article, Unit] =
+    _.broadcastThrough(
+      publish(assignArticleToPublishChannels, articleToMessageEmbed, logArticlePublishing),
+      _.flatMap(article => Stream.emits(article.opportunities))
+        .through(publish(assignOpportunitiesToPublishChannels, opportunityToMessageEmbed, logOpportunityPublishing)),
+    )
 
 object Discord:
   def warnMissingGuilds(
@@ -138,14 +154,16 @@ object Discord:
   def apply(config: Configuration)(using Logger[IO]): Resource[IO, Discord] =
     DiscordClient(config.token).evalMap { client =>
       for
-        windsOfFortuneChannels <- client.channels(config.windsOfFortuneChannels)
-        windsOfWarChannels     <- client.channels(config.windsOfWarChannels)
-        diplomacyChannels      <- client.channels(config.diplomacyChannels)
-        appraisalsChannels     <- client.channels(config.appraisalsChannels)
-        mandatesChannels       <- client.channels(config.mandatesChannels)
-        motionsChannels        <- client.channels(config.motionsChannels)
-        magicChannels          <- client.channels(config.magicChannels)
-        itemsChannels          <- client.channels(config.itemsChannels)
+        windsOfFortuneChannels <- client.textChannels(config.windsOfFortuneChannels)
+        windsOfWarChannels     <- client.textChannels(config.windsOfWarChannels)
+        diplomacyChannels      <- client.textChannels(config.diplomacyChannels)
+        appraisalsChannels     <- client.textChannels(config.appraisalsChannels)
+        mandatesChannels       <- client.textChannels(config.mandatesChannels)
+        motionsChannels        <- client.textChannels(config.motionsChannels)
+        magicChannels          <- client.textChannels(config.magicChannels)
+        itemsChannels          <- client.textChannels(config.itemsChannels)
+        titlesChannels         <- client.textChannels(config.titlesChannels)
+        commissionsChannels    <- client.textChannels(config.commissionsChannels)
         _                      <- warnMissingGuildChannels(
                                     client,
                                     (windsOfFortuneChannels, "Winds of Fortune"),
@@ -156,6 +174,8 @@ object Discord:
                                     (motionsChannels, "Motions"),
                                     (magicChannels, "Magic"),
                                     (itemsChannels, "Items"),
+                                    (titlesChannels, "Titles"),
+                                    (commissionsChannels, "Commissions"),
                                   )
       yield new Discord(
         windsOfFortuneChannels,
@@ -166,7 +186,8 @@ object Discord:
         motionsChannels,
         magicChannels,
         itemsChannels,
-        config.tagMap,
+        titlesChannels,
+        commissionsChannels,
         config.maxDescriptionLength,
       )
     }

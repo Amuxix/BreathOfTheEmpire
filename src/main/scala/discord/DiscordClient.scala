@@ -30,6 +30,9 @@ class DiscordClient(val jda: JDA):
       (channel: JDATextChannel) => new TextChannel(channel, channelGuild(channel.getIdLong)),
     )
 
+  def textChannels(ids: List[DiscordID])(using Logger[IO]): IO[List[TextChannel]] =
+    ids.flatTraverse(textChannel(_).value.map(_.toList))
+
   def channels(ids: List[DiscordID])(using Logger[IO]): IO[List[Channel]] =
     ids.flatTraverse { id =>
       getter[Long](

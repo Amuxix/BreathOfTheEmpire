@@ -62,10 +62,10 @@ case class WikiPage(
 
   lazy val mainCategories = parsedCategories.collect { case c: MainCategory => c }
 
-case class PageSection(
+case class ParsedPage(
   text: Elem,
 )
 
-object PageSection:
-  given Decoder[PageSection] =
-    _.downField("parse").downField("text").as[String].map(text => PageSection(XML.loadString(text)))
+object ParsedPage:
+  given Decoder[ParsedPage] =
+    _.downField("parse").downField("text").as[String].map(text => ParsedPage(XML.loadString(text)))

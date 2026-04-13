@@ -1,7 +1,7 @@
 package discord
 
 import cats.effect.IO
-import empire.Season
+import empire.{Opportunity, Season}
 import org.http4s.Uri
 
 case class Article(
@@ -11,8 +11,10 @@ case class Article(
   publishCategory: PublishCategory,
   mainCategory: String,
   extraCategories: List[String],
+  opportunities: List[Opportunity],
   uri: Uri,
   extraInfo: IO[String],
 ):
-  lazy val extraCategoriesString = if extraCategories.isEmpty then "" else extraCategories.mkString(", ", ", ", "")
-  lazy val show: String          = s"[$mainCategory$extraCategoriesString] $title"
+  lazy val categories: List[String] =
+    s"$season $year" +: mainCategory +: (extraCategories ++ opportunities.headOption.map(_ => "Opportunity"))
+  lazy val show: String             = s"[${categories.mkString(", ")}] $title"

@@ -8,7 +8,7 @@ import wiki.Wiki.yearSeasonRegex
 import java.time.Instant
 import scala.util.matching.Regex
 
-class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
+class Wiki(client: WikiClient, categoryBatch: Int):
   private val overviewRegex = s"$yearSeasonRegex (Solstice|Equinox) (winds of (war|fortune)|Military Council orders)".r
 
   private val mergeAllPageCategories: Pipe[IO, WikiPage, WikiPage] = pages =>
@@ -42,16 +42,18 @@ class Wiki(client: WikiClient, categoryBatch: Int)(using Logger[IO]):
       case page @ WikiPage(Some(title), Some(pageID), _)
           if !overviewRegex.matches(title) && page.mainCategories.nonEmpty && page.yearAndSeason.nonEmpty =>
         val (year, season) = page.yearAndSeason.get
+        val pageUri        = client.pageUri(title)
 
-        client.pageSection(pageID, 1).memoize.map { extraInfo =>
+        client.parsedPage(pageID, 1).map { pageSection =>
           Page(
             title,
             year,
             season,
             page.mainCategories.minBy(_.ordinal),
             page.parsedCategories.collect { case c: ExtraCategory => c }.toList.sortBy(_.ordinal),
-            client.pageUri(title),
-            extraInfo,
+            Opportunities.extractOpportunities(pageSection, client.wiki, pageUri, year, season),
+            pageUri,
+            client.renderedFirstSection(pageSection, client.wiki),
           )
         }
     }.evalMap(identity)

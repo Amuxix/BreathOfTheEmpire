@@ -1,6 +1,5 @@
 package wiki
 
-import cats.effect.IO
 import org.http4s.Uri
 
 import scala.util.matching.Regex
@@ -17,38 +16,42 @@ object XMLRender:
   private case object Skip                              extends Decision
   private case object Render                            extends Decision
   private case class RenderWithPrefix(prefix: String)   extends Decision
+  private case class RenderWithSuffix(suffix: String)   extends Decision
   private case class RenderWithWrapper(wrapper: String) extends Decision
 
-  private def inner(wiki: Uri)(rendered: String, node: Node): String =
-    lazy val childrenRendered = node.child.foldLeft("")(inner(wiki))
+  private def inner(wiki: Uri, ignoredLabels: String*)(rendered: String, node: Node): String =
+    lazy val childrenRendered = node.child.foldLeft("")(inner(wiki, ignoredLabels*))
 
     node match
       case Text(text)                      => rendered + text
       case elem: Elem if elem.label == "a" =>
         rendered + elem
           .attribute("href")
-          .map(_.foldLeft("")(inner(wiki)))
+          .map(_.foldLeft("")(inner(wiki, ignoredLabels*)))
           .fold(childrenRendered)(href => s"[$childrenRendered](<${wiki.addPath(href.dropWhile(_ == '/'))}>)")
       case elem: Elem if elem.label == "p" =>
         rendered + childrenRendered.replaceAll("\n", " ") + "\n" + "\n"
 
       case elem: Elem =>
         val decision: Decision = elem.label match
-          case "h2" => RenderWithPrefix("# ")
-          case "h3" => RenderWithPrefix("## ")
+          case label if ignoredLabels.contains(label) => Skip
+          case "h2"                                   => RenderWithPrefix("# ")
+          case "h3"                                   => RenderWithPrefix("## ")
           case "big" | "h4" => RenderWithPrefix("### ")
           case "small" => RenderWithPrefix("-# ")
           case "li"    => RenderWithPrefix("- ")
           case "b"     => RenderWithWrapper("**")
           case "i"     => RenderWithWrapper("*")
           case "s"     => RenderWithWrapper("__")
-          case "span" | "ul" | "sup " | "sup" => Render
+          case "tr"    => RenderWithSuffix("\n")
+          case "td"    => RenderWithSuffix("\t")
+          case "span" | "ul" | "sup " | "sup" | "table" | "tbody" => Render
           case "div" if elem.hasClass("mw-parser-output")                                                => Render
           case "div" if elem.styleContains("float: ?right".r)                                            => Skip
           case "div" if elem.styleContains("float: ?left".r)                                             => Skip
           case "div" if elem.hasClass("captioned-image", "ic", "embedvideo", "ic-inner", "quote", "box") => Skip
-          case "table" | "br" => Skip
-          case other =>
+          case "br"                                                                                      => Skip
+          case other                                                                                     =>
             println {
               (
                 other,
@@ -65,9 +68,10 @@ object XMLRender:
           case Skip                       => rendered
           case Render                     => renderChildren("", "")
           case RenderWithPrefix(prefix)   => renderChildren(prefix, "")
+          case RenderWithSuffix(suffix)   => renderChildren("", suffix)
           case RenderWithWrapper(wrapper) => renderChildren(wrapper, wrapper)
 
       case _ => ""
 
-  def render(node: Node, wiki: Uri): IO[String] =
-    IO.blocking(inner(wiki)("", node).replaceFirst("\n*#+ [^\n]+\n*", ""))
+  def render(node: Node, wiki: Uri, ignoredLabels: String*): String =
+    inner(wiki, ignoredLabels*)("", node)

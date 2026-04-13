@@ -47,7 +47,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
     case Category.WindsOfFortune  => PublishCategory.WindOfFortune
 
   val toArticle: Pipe[IO, Page, Article] =
-    _.map { case Page(title, year, season, mainCategory, extraCategories, uri, extraInfo) =>
+    _.map { case Page(title, year, season, mainCategory, extraCategories, opportunities, uri, extraInfo) =>
       Article(
         title,
         year,
@@ -55,6 +55,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
         publishCategory(mainCategory),
         mainCategory.name,
         extraCategories.map(_.name),
+        opportunities,
         uri,
         extraInfo,
       )
@@ -77,7 +78,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
         .evalMap { (instant, pageStream) =>
           pageStream
             .through(toArticle)
-            .through(discord.publishArticle)
+            .through(discord.publishAll)
             .compile
             .toList
             .map(list => instant -> list.size)
@@ -85,7 +86,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
         .compile
         .toList
         .flatMap { list =>
-          Logger[IO].debug(s"Published ${list.map(_(1)).sum} articles.").as(list.map(_(0)).max)
+          Logger[IO].debug(s"Published ${list.map(_(1)).sum} articles/opportunities.").as(list.map(_(0)).max)
         }
 
   def stream(

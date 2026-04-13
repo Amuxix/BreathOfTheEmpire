@@ -68,7 +68,7 @@ class WikiClient(client: Client[IO], val wiki: Uri):
   def page(uri: Uri): IO[String] =
     client.get(uri)(_.bodyText.compile.foldMonoid)
 
-  def pageSection(pageId: Int, section: Int): IO[String] =
+  def parsedPage(pageId: Int, section: Int): IO[ParsedPage] =
     val uri = API.withQueryParams(
       actionParams("parse") ++ Map(
         "prop"                      -> "text",
@@ -76,12 +76,27 @@ class WikiClient(client: Client[IO], val wiki: Uri):
         "disablelimitreport"        -> "1",
         "disableeditsection"        -> "1",
         "disablestylededuplication" -> "1",
-        "disabletoc"                -> "1",
-        "section"                   -> section.toString,
+        // "section"                   -> section.toString,
         "pageid"                    -> pageId.toString,
       ),
     )
-    client.expect[PageSection](uri).flatMap(section => XMLRender.render(section.text, wiki))
+    client.expect[ParsedPage](uri)
+
+  def renderedFirstSection(page: ParsedPage, wiki: Uri): IO[String] =
+    IO.blocking {
+      val text = XMLRender
+        .render(page.text, wiki, "table")
+      println(text)
+      text
+        .replaceFirst("\n*#+ [^\n]+\n*", "") // remove first title
+        .takeWhile(_ != '#')                 // keep only till text title
+        .split("\n")
+        .flatMap {
+          case string if string.matches("^- .+?$") => None
+          case string                              => Some(string)
+        }
+        .mkString("\n")                      // remove bullet points
+    }
 
 object WikiClient:
   def apply(API: Uri)(using Logger[IO]): Resource[IO, WikiClient] =

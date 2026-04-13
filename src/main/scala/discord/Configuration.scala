@@ -17,8 +17,7 @@ case class Configuration(
   motionsChannels: List[DiscordID],
   magicChannels: List[DiscordID],
   itemsChannels: List[DiscordID],
+  titlesChannels: List[DiscordID],
+  commissionsChannels: List[DiscordID],
   maxDescriptionLength: Int,
-  tags: List[(DiscordID, List[(PublishCategory, DiscordID)])],
-) derives ConfigReader:
-  val tagMap: Map[DiscordID, Map[PublishCategory, DiscordID]] =
-    tags.map((channel, tagsByCategory) => channel -> tagsByCategory.toMap).toMap
+) derives ConfigReader

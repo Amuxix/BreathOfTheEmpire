@@ -1,7 +1,7 @@
 package wiki
 
 import cats.effect.IO
-import empire.Season
+import empire.{Opportunity, Season}
 import org.http4s.Uri
 
 case class Page(
@@ -10,6 +10,7 @@ case class Page(
   season: Season,
   mainCategory: Category & MainCategory,
   extraCategories: List[Category & ExtraCategory],
+  opportunities: List[Opportunity],
   uri: Uri,
   extraInfo: IO[String],
 ):
