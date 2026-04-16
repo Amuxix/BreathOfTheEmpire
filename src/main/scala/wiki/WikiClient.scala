@@ -2,12 +2,14 @@ package wiki
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
+import cats.effect.std.Semaphore
+import cats.syntax.flatMap.*
 import fs2.Stream
 import io.circe.Decoder
-import org.http4s.{ProductComment, ProductId, Uri}
+import org.http4s.{ProductComment, ProductId, Status, Uri}
 import org.http4s.circe.CirceEntityDecoder.*
 import org.http4s.client.Client
-import org.http4s.client.middleware.{GZip, Logger as LoggerMiddle}
+import org.http4s.client.middleware.{GZip, Logger as LoggerMiddle, Retry, RetryPolicy}
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.`User-Agent`
 import org.typelevel.log4cats.Logger
@@ -41,7 +43,6 @@ class WikiClient(client: Client[IO], val wiki: Uri):
             IO.pure((timestamp, data) -> None)
         }
       }
-      .spaced(60.seconds / 200)
 
   def createdEvents(from: Instant): Stream[IO, (Instant, List[Logevent])] =
     query[Logevent](
@@ -68,7 +69,7 @@ class WikiClient(client: Client[IO], val wiki: Uri):
   def page(uri: Uri): IO[String] =
     client.get(uri)(_.bodyText.compile.foldMonoid)
 
-  def parsedPage(pageId: Int, section: Int): IO[ParsedPage] =
+  def parsedPage(pageId: Int): IO[ParsedPage] =
     val uri = API.withQueryParams(
       actionParams("parse") ++ Map(
         "prop"                      -> "text",
@@ -82,12 +83,10 @@ class WikiClient(client: Client[IO], val wiki: Uri):
     )
     client.expect[ParsedPage](uri)
 
-  def renderedFirstSection(page: ParsedPage, wiki: Uri): IO[String] =
+  def renderedFirstSection(page: ParsedPage): IO[(String, List[Category & TextCategory])] =
     IO.blocking {
-      val text = XMLRender
-        .render(page.text, wiki, "table")
-      println(text)
-      text
+      val (text, categories) = XMLRender.render(page.text, wiki, pageUri, "table")
+      val trimmed            = text
         .replaceFirst("\n*#+ [^\n]+\n*", "") // remove first title
         .takeWhile(_ != '#')                 // keep only till text title
         .split("\n")
@@ -96,9 +95,33 @@ class WikiClient(client: Client[IO], val wiki: Uri):
           case string                              => Some(string)
         }
         .mkString("\n")                      // remove bullet points
+      (trimmed, categories)
     }
 
 object WikiClient:
+  private val retryPolicy: RetryPolicy[IO] = RetryPolicy[IO](
+    backoff = RetryPolicy.exponentialBackoff(maxWait = 1.minute, maxRetry = 5),
+    retriable =
+      (req, result) => RetryPolicy.defaultRetriable(req, result) || result.exists(_.status == Status.TooManyRequests),
+  )
+
+  private def throttled(client: Client[IO], minGap: FiniteDuration): Resource[IO, Client[IO]] =
+    for
+      sem       <- Resource.eval(Semaphore[IO](1))
+      lastReqAt <- Resource.eval(IO.ref(Duration.Zero: FiniteDuration))
+    yield Client[IO] { req =>
+      Resource.eval(
+        sem.permit.surround {
+          IO.monotonic.flatMap { now =>
+            lastReqAt.get.flatMap { last =>
+              val wait = minGap - (now - last)
+              IO.whenA(wait > Duration.Zero)(IO.sleep(wait))
+            }
+          } *> IO.monotonic.flatMap(lastReqAt.set)
+        },
+      ) >> client.run(req)
+    }
+
   def apply(API: Uri)(using Logger[IO]): Resource[IO, WikiClient] =
     EmberClientBuilder
       .default[IO]
@@ -115,4 +138,6 @@ object WikiClient:
           logAction = Some((msg: String) => Logger[IO].trace(msg)),
         ),
       )
+      .flatMap(throttled(_, 300.millis))
+      .map(Retry(retryPolicy))
       .map(new WikiClient(_, API))

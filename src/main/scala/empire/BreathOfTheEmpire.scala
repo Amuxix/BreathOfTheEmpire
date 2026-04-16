@@ -7,6 +7,7 @@ import fs2.{Pipe, Stream}
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import retry.*
 import wiki.{Category, MainCategory, Page, Wiki}
 
 import java.nio.file.NoSuchFileException
@@ -47,18 +48,19 @@ object BreathOfTheEmpire extends IOApp.Simple:
     case Category.WindsOfFortune  => PublishCategory.WindOfFortune
 
   val toArticle: Pipe[IO, Page, Article] =
-    _.map { case Page(title, year, season, mainCategory, extraCategories, opportunities, uri, extraInfo) =>
-      Article(
-        title,
-        year,
-        season,
-        publishCategory(mainCategory),
-        mainCategory.name,
-        extraCategories.map(_.name),
-        opportunities,
-        uri,
-        extraInfo,
-      )
+    _.map {
+      case Page(title, year, season, mainCategory, extraCategories, textCategories, opportunities, uri, extraInfo) =>
+        Article(
+          title,
+          year,
+          season,
+          publishCategory(mainCategory),
+          mainCategory.name,
+          (extraCategories.map(_.name) ++ textCategories.map(_.name)).distinct,
+          opportunities,
+          uri,
+          extraInfo,
+        )
     }
 
   def startingInstant(
@@ -95,10 +97,20 @@ object BreathOfTheEmpire extends IOApp.Simple:
     lastInstant: Path,
     interval: FiniteDuration,
   )(using Logger[IO]): Stream[IO, Unit] =
+    val retryPolicy = RetryPolicies.capDelay(6.hours, RetryPolicies.exponentialBackoff[IO](interval))
+
+    def publishWithRetry(instant: Instant): IO[Instant] =
+      retryingOnErrors(publishNewArticlesCreatedAfter(wiki, discord, instant))(
+        policy = retryPolicy,
+        errorHandler = ResultHandler.retryOnAllErrors((err, details) =>
+          Logger[IO].warn(err)(s"Wiki fetch failed, retrying (attempt ${details.retriesSoFar + 1})..."),
+        ),
+      )
+
     Stream
       .eval(startingInstant(lastInstant, interval))
-      .evalMap(publishNewArticlesCreatedAfter(wiki, discord, _))
-      .flatMap(Stream.iterateEval(_)(publishNewArticlesCreatedAfter(wiki, discord, _)))
+      .evalMap(publishWithRetry)
+      .flatMap(Stream.iterateEval(_)(publishWithRetry))
       .meteredStartImmediately(interval)
       .evalMap(_ => writeLastInstant(lastInstant, Instant.now))
 

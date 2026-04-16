@@ -21,7 +21,7 @@ object Opportunities:
     table match
       case renderedTitleExtractor(title, body) => Opportunity(`type`, title, body, page, year, season)
 
-  private def inner(wiki: Uri, page: Uri, year: Int, season: Season)(
+  private def inner(wiki: Uri, pageUri: String => Uri, page: Uri, year: Int, season: Season)(
     opportunities: List[Opportunity],
     node: Node,
   ): List[Opportunity] =
@@ -38,8 +38,8 @@ object Opportunities:
         val rows = elem.firstChild("tbody").allOf("tr")
         rows match
           case titleRow :: secondRow :: _ =>
-            lazy val table   = XMLRender.render(elem, wiki)
-            lazy val hasType = secondRow.firstChild("td").exists(XMLRender.render(_, wiki).contains("Type"))
+            lazy val table   = XMLRender.render(elem, wiki, pageUri)._1
+            lazy val hasType = secondRow.firstChild("td").exists(XMLRender.render(_, wiki, pageUri)._1.contains("Type"))
             titleRow.firstChild("td").toList.collect {
               case titleCell: Elem if titleCell.styleContains("background-color: LightBlue".r) && hasType =>
                 createOpportunity(table, OpportunityType.Commission, page, year, season)
@@ -49,13 +49,14 @@ object Opportunities:
             }
 
           case _ => List.empty
-      case _ => node.child.foldLeft(List.empty)(inner(wiki, page, year, season)))
+      case _ => node.child.foldLeft(List.empty)(inner(wiki, pageUri, page, year, season)))
 
   def extractOpportunities(
     pageSection: ParsedPage,
     wiki: Uri,
+    pageUri: String => Uri,
     page: Uri,
     year: Int,
     season: Season,
   ): List[Opportunity] =
-    inner(wiki, page, year, season)(List.empty, pageSection.text)
+    inner(wiki, pageUri, page, year, season)(List.empty, pageSection.text)

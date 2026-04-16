@@ -26,31 +26,29 @@ class Discord(
   commissionsChannels: List[TextChannel],
   maxDescriptionLength: Int,
 )(using Logger[IO]):
-  private def removeLinksFromText(text: String): String =
-    text.replaceAll("\\[(.+?)]\\(<.+?>\\)", "$1")
+
+  private val sentenceEnd = "(?m)[.!?](?=\\s|$)".r
 
   private def truncateExtraInfo(extraInfo: String, maxSize: Int): String =
     if extraInfo.length <= maxSize then extraInfo
     else
-      val paragraphs = extraInfo.split("\n").toList
-      paragraphs
-        .foldLeft((List.empty[String], maxSize - 5, false)) {
-          case ((paragraphs, _, true), _)                                                       =>
-            (paragraphs, 0, true)
-          case ((paragraphs, remaining, false), paragraph) if remaining >= paragraph.length + 1 =>
-            (paragraphs :+ paragraph, remaining - paragraph.length - 1, false)
-          case ((paragraphs, remaining, false), paragraph)                                      =>
-            val (words, _, _) = paragraph.split(" ").toList.foldLeft((List.empty[String], remaining, false)) {
-              case ((words, _, true), _)                                            =>
-                (words, 0, true)
-              case ((words, remaining, false), word) if remaining < word.length + 1 =>
-                (words, 0, true)
-              case ((words, remaining, false), word)                                =>
-                (words :+ word, remaining - word.length - 1, false)
-            }
-            (paragraphs :+ words.mkString(" "), 0, true)
-        }(0)
-        .mkString("", "\n", "\n\n### ...")
+      val limit  = maxSize - 5
+      val cutoff = sentenceEnd
+        .findAllMatchIn(extraInfo)
+        .map(_.end)
+        .takeWhile(_ <= limit)
+        .toList
+        .lastOption
+        .orElse {
+          "\n".r
+            .findAllMatchIn(extraInfo)
+            .map(_.start)
+            .takeWhile(_ <= limit)
+            .toList
+            .lastOption
+        }
+        .getOrElse(limit)
+      extraInfo.take(cutoff).stripTrailing() + "\n\n### ..."
 
   extension (season: Season)
     def toColor: Color = season match
@@ -60,17 +58,15 @@ class Discord(
       case Season.Summer => Color(255, 255, 186)
 
   private def articleToMessageEmbed(article: Article): IO[MessageEmbed] =
-    article.extraInfo
-      .map(extraInfo => removeLinksFromText(extraInfo))
-      .map { extraInfo =>
-        new EmbedBuilder()
-          .setTitle(article.title)
-          .setDescription(truncateExtraInfo(extraInfo, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n"))
-          .setUrl(article.uri.toString)
-          .setFooter(article.categories.mkString("  "))
-          .setColor(article.season.toColor)
-          .build()
-      }
+    IO {
+      new EmbedBuilder()
+        .setTitle(article.title)
+        .setDescription(truncateExtraInfo(article.extraInfo, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n"))
+        .setUrl(article.uri.toString)
+        .setFooter(article.categories.mkString("  "))
+        .setColor(article.season.toColor)
+        .build()
+    }
 
   private def opportunityToMessageEmbed(opportunity: Opportunity): IO[MessageEmbed] =
     IO {

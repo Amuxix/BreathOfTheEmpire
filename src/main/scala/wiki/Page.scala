@@ -1,6 +1,5 @@
 package wiki
 
-import cats.effect.IO
 import empire.{Opportunity, Season}
 import org.http4s.Uri
 
@@ -10,9 +9,10 @@ case class Page(
   season: Season,
   mainCategory: Category & MainCategory,
   extraCategories: List[Category & ExtraCategory],
+  textCategories: List[Category & TextCategory],
   opportunities: List[Opportunity],
   uri: Uri,
-  extraInfo: IO[String],
+  extraInfo: String,
 ):
   lazy val extraCategoriesString     = if extraCategories.isEmpty then "" else extraCategories.mkString(", ", ", ", "")
   override lazy val toString: String = s"[$mainCategory$extraCategoriesString] $title"

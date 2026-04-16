@@ -73,5 +73,10 @@ object XMLRender:
 
       case _ => ""
 
-  def render(node: Node, wiki: Uri, ignoredLabels: String*): String =
-    inner(wiki, ignoredLabels*)("", node)
+  def render(
+    node: Node,
+    wiki: Uri,
+    pageUri: String => Uri,
+    ignoredLabels: String*,
+  ): (String, List[Category & TextCategory]) =
+    LinkEnricher.enrich(inner(wiki, ignoredLabels*)("", node), pageUri)

@@ -44,17 +44,20 @@ class Wiki(client: WikiClient, categoryBatch: Int):
         val (year, season) = page.yearAndSeason.get
         val pageUri        = client.pageUri(title)
 
-        client.parsedPage(pageID, 1).map { pageSection =>
-          Page(
-            title,
-            year,
-            season,
-            page.mainCategories.minBy(_.ordinal),
-            page.parsedCategories.collect { case c: ExtraCategory => c }.toList.sortBy(_.ordinal),
-            Opportunities.extractOpportunities(pageSection, client.wiki, pageUri, year, season),
-            pageUri,
-            client.renderedFirstSection(pageSection, client.wiki),
-          )
+        client.parsedPage(pageID).flatMap { pageSection =>
+          client.renderedFirstSection(pageSection).map { (text, textCategories) =>
+            Page(
+              title,
+              year,
+              season,
+              page.mainCategories.minBy(_.ordinal),
+              page.parsedCategories.collect { case c: ExtraCategory => c }.toList.sortBy(_.ordinal),
+              textCategories,
+              Opportunities.extractOpportunities(pageSection, client.wiki, client.pageUri, pageUri, year, season),
+              pageUri,
+              text,
+            )
+          }
         }
     }.evalMap(identity)
 
