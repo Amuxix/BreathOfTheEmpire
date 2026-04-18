@@ -74,7 +74,9 @@ class Discord(
         .setTitle(opportunity.title)
         .setDescription(opportunity.body)
         .setUrl(opportunity.source.toString)
-        .setFooter(s"${opportunity.season} ${opportunity.year}  ${opportunity.`type`}")
+        .setFooter(
+          (s"${opportunity.season} ${opportunity.year}" +: s"${opportunity.`type`}" +: opportunity.tags).mkString("  "),
+        )
         .setColor(opportunity.season.toColor)
         .build()
     }

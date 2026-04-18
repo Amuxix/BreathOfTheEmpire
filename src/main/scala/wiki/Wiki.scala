@@ -45,14 +45,13 @@ class Wiki(client: WikiClient, categoryBatch: Int):
         val pageUri        = client.pageUri(title)
 
         client.parsedPage(pageID).flatMap { pageSection =>
-          client.renderedFirstSection(pageSection).map { (text, textCategories) =>
+          client.renderedFirstSection(pageSection).map { (text, categories) =>
             Page(
               title,
               year,
               season,
               page.mainCategories.minBy(_.ordinal),
-              page.parsedCategories.collect { case c: ExtraCategory => c }.toList.sortBy(_.ordinal),
-              textCategories,
+              (page.parsedCategories ++ categories).toList.collect { case c: (Extra | Text) => c }.sortBy(_.ordinal),
               Opportunities.extractOpportunities(pageSection, client.wiki, client.pageUri, pageUri, year, season),
               pageUri,
               text,

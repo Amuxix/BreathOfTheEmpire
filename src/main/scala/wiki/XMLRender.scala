@@ -3,7 +3,7 @@ package wiki
 import org.http4s.Uri
 
 import scala.util.matching.Regex
-import scala.xml.{Elem, Node, Text}
+import scala.xml.{Elem, Node, Text as XmlText}
 
 object XMLRender:
   extension (elem: Elem)
@@ -23,7 +23,7 @@ object XMLRender:
     lazy val childrenRendered = node.child.foldLeft("")(inner(wiki, ignoredLabels*))
 
     node match
-      case Text(text)                      => rendered + text
+      case XmlText(text)                   => rendered + text
       case elem: Elem if elem.label == "a" =>
         rendered + elem
           .attribute("href")
@@ -46,20 +46,18 @@ object XMLRender:
           case "tr"    => RenderWithSuffix("\n")
           case "td"    => RenderWithSuffix("\t")
           case "span" | "ul" | "sup " | "sup" | "table" | "tbody" => Render
-          case "div" if elem.hasClass("mw-parser-output")                                                => Render
-          case "div" if elem.styleContains("float: ?right".r)                                            => Skip
-          case "div" if elem.styleContains("float: ?left".r)                                             => Skip
-          case "div" if elem.hasClass("captioned-image", "ic", "embedvideo", "ic-inner", "quote", "box") => Skip
-          case "br"                                                                                      => Skip
-          case other                                                                                     =>
-            println {
-              (
-                other,
-                elem.attributes,
-                elem.attribute("class").toList.flatten.mkString("|"),
-                elem.attribute("style").toList.flatten.mkString("|"),
-              )
-            }
+          case "div" if elem.hasClass("mw-parser-output")                                => Render
+          case "div" if elem.styleContains("float: ?right".r)                            => Skip
+          case "div" if elem.styleContains("float: ?left".r)                             => Skip
+          case "div" if elem.hasClass("captioned-image", "ic", "embedvideo", "ic-inner") => Skip
+          case "div" if elem.hasClass("quote", "box", "mw-collapsible")                  => Skip
+          case "div" if elem.styleContains("grid-template-columns: \\d+fr \\d+fr".r)     => Render
+          case "div" if elem.styleContains("max-width:\\d+px".r)                         => Render
+          case "br"                                                                      => Skip
+          case other                                                                     =>
+            println(s"unmatched $other tag found")
+            println(s"class= ${elem.attribute("class").toList.flatten.mkString("|")}")
+            println(s"style= ${elem.attribute("style").toList.flatten.mkString("|")}")
             Render
 
         lazy val renderChildren = (prefix: String, suffix: String) => rendered + prefix + childrenRendered + suffix
@@ -78,5 +76,5 @@ object XMLRender:
     wiki: Uri,
     pageUri: String => Uri,
     ignoredLabels: String*,
-  ): (String, List[Category & TextCategory]) =
+  ): (String, List[Category & Text]) =
     LinkEnricher.enrich(inner(wiki, ignoredLabels*)("", node), pageUri)

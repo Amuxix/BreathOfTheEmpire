@@ -5,28 +5,27 @@ import org.http4s.Uri
 import scala.util.matching.Regex
 
 object LinkEnricher:
-  case class Rule(pattern: Regex, page: String, category: Option[Category & TextCategory] = None)
+  case class Rule(pattern: Regex, page: String, category: Option[Category & Text] = None)
 
-  private def term(name: String): Regex =
-    s"(?i)\\b${Regex.quote(name)}\\b".r
+  private def insensitiveWord(term: String): Regex =
+    s"(?i)\\b$term\\b".r
 
-  private def pluralTerm(name: String): Regex =
-    s"(?i)\\b${Regex.quote(name)}s?\\b".r
+  private def rulesFromPattern(entries: (String, String) | (String, String, Category & Text)*): List[Rule] =
+    entries.toList.map {
+      case (pattern, page)           => Rule(insensitiveWord(pattern), page)
+      case (pattern, page, category) => Rule(insensitiveWord(pattern), page, Some(category))
+    }
 
-  private def custom(pattern: String, page: String, category: Option[Category & TextCategory] = None): Rule =
-    Rule(s"(?i)\\b$pattern\\b".r, page, category)
+  private def quoted(name: String): Regex = insensitiveWord(s"${Regex.quote(name)}s?")
 
-  private def rulesFrom(names: String*): List[Rule] =
-    names.toList.map(n => Rule(term(n), n))
-
-  private def categorizedRulesFrom(entries: (String, Category & TextCategory)*): List[Rule] =
-    entries.toList.map((n, c) => Rule(term(n), n, Some(c)))
-
-  private def pluralRulesFrom(names: String*): List[Rule] =
-    names.toList.map(n => Rule(pluralTerm(n), n))
+  private def rulesFromName(entries: String | (String, Category & Text)*): List[Rule] =
+    entries.toList.map {
+      case name: String     => Rule(quoted(name), name)
+      case (name, category) => Rule(quoted(name), name, Some(category))
+    }
 
   // format: off
-  private val eternals = categorizedRulesFrom(
+  private val eternals = rulesFromName(
     // Spring
     "Arhallogen"             -> Category.Arhallogen,
     "Irra Harah"             -> Category.IrraHarah,
@@ -58,7 +57,7 @@ object LinkEnricher:
     "Sorin"                  -> Category.Sorin,
     "Surut"                  -> Category.Surut,
     "Tharim"                 -> Category.Tharim,
-    "The Thrice-cursed Court" -> Category.TheThriceCursedCourt,
+    "The Thrice-cursed Court" -> Category.ThriceCursedCourt,
     "Wise Rangara"           -> Category.WiseRangara,
     "Zakalwe"                -> Category.Zakalwe,
     // Day
@@ -76,26 +75,26 @@ object LinkEnricher:
     "Murit"                  -> Category.Murit,
     "Sadogua"                -> Category.Sadogua,
     "Soghter"                -> Category.Soghter,
-  ) ++ List(
-    custom("(The )?Lictors", "Lictors", Some(Category.TheLictors)),
-    custom("(The )?Whisper Gallery", "Whisper Gallery", Some(Category.TheWhisperGallery)),
+  ) ++ rulesFromPattern(
+    ("(The )?Lictors", "Lictors", Category.Lictors),
+    ("(The )?Whisper Gallery", "Whisper Gallery", Category.WhisperGallery),
   )
 
-  private val nations = categorizedRulesFrom(
+  private val nations = rulesFromName(
     "Dawn"          -> Category.Dawn,
     "Highguard"     -> Category.Highguard,
     "Imperial Orcs" -> Category.ImperialOrcs,
-    "The League"    -> Category.TheLeague,
-    "The Marches"   -> Category.TheMarches,
+    "The League"    -> Category.League,
+    "The Marches"   -> Category.Marches,
     "Navarr"        -> Category.Navarr,
     "Urizen"        -> Category.Urizen,
     "Varushka"      -> Category.Varushka,
     "Wintermark"    -> Category.Wintermark,
-  ) ++ List(
-    custom("(The )?Brass Coast", "The Brass Coast", Some(Category.TheBrassCoast)),
+  ) ++ rulesFromPattern(
+    ("(The )?Brass Coast", "The Brass Coast", Category.BrassCoast),
   )
 
-  private val foreignNations = categorizedRulesFrom(
+  private val foreignNations = rulesFromName(
     "Axos"              -> Category.Axos,
     "Asavea"            -> Category.Asavea,
     "Commonwealth"      -> Category.Commonwealth,
@@ -104,20 +103,20 @@ object LinkEnricher:
     "Skoura"            -> Category.Skoura,
     "Otkodov"           -> Category.Otkodov,
     "Tsark"             -> Category.Tsark,
-  ) ++ List(
-    custom("(Principalities of )?Jarm", "Principalities of Jarm", Some(Category.Jarm)),
-    custom("Sarcophan( Delves)?", "Sarcophan Delves", Some(Category.Sarcophan)),
-    custom("Sumaah( Republic)?", "Sumaah Republic", Some(Category.Sumaah)),
+  ) ++ rulesFromPattern(
+    ("(Principalities of )?Jarm", "Principalities of Jarm", Category.Jarm),
+    ("Sarcophan( Delves)?", "Sarcophan Delves", Category.Sarcophan),
+    ("Sumaah( Republic)?", "Sumaah Republic", Category.Sumaah),
   )
 
-  private val barbarianNations = categorizedRulesFrom(
+  private val barbarianNations = rulesFromName(
     "Druj"    -> Category.Druj,
     "Grendel" -> Category.Grendel,
     "Jotun"   -> Category.Jotun,
     "Thule"   -> Category.Thule,
   )
 
-  private val regions = rulesFrom(
+  private val regions = rulesFromName(
     // Brass Coast
     "Kahraman", "Madruga", "Segura", "Feroz",
     // Dawn
@@ -140,11 +139,11 @@ object LinkEnricher:
     "Hahnmark", "Sermersuaq", "Kallavesa", "Skallahn",
     // Other
     "The Barrens", "Ossium", "Mareave", "Sarangrave",
-  ) ++ List(
-    custom("Broc[eé]liande", "Brocéliande"),
+  ) ++ rulesFromPattern(
+    ("Broc[eé]liande", "Brocéliande"),
   )
 
-  private val sovereignty = rulesFrom(
+  private val sovereignty = rulesFromName(
     "Imperial Senate", "Imperial Synod", "Imperial Conclave",
     "Imperial Bourse", "Imperial Military Council", "The Throne",
     // Conclave Orders
@@ -155,7 +154,7 @@ object LinkEnricher:
     "Archmage of Winter", "Archmage of Day", "Archmage of Night",
   )
 
-  private val springRituals = rulesFrom(
+  private val springRituals = rulesFromName(
     "Blood of the Hydra", "The Hands of Sacred Life", "Hearthfire Circle",
     "Chirurgeon's Healing Touch", "Fountain of Life", "Vitality of Rushing Water",
     "Irrepressible Monkey Spirit", "Skin of Bark, Blood of Amber", "Rivers of Life",
@@ -168,7 +167,7 @@ object LinkEnricher:
     "Rising Roots that Rend Stone", "Thunderous Tread of the Trees",
   )
 
-  private val summerRituals = rulesFrom(
+  private val summerRituals = rulesFromName(
     "Renewed Strength of the New Day", "Tenacity of Jotra", "Swan's Cruel Wing",
     "Swift Leaping Hare", "Hammer of Thunder", "Strength of the Bull",
     "Crimson Ward of Summer Stars", "Devastating Maul of Inga Tarn", "Talon of the Gryphon",
@@ -182,7 +181,7 @@ object LinkEnricher:
     "Stalwart Stand on Solid Ground", "Frozen Citadel of Cathan Canae",
   )
 
-  private val autumnRituals = rulesFrom(
+  private val autumnRituals = rulesFromName(
     "Streams of Silver", "Rivers of Gold", "Chamber of Pallas", "Winds of Fortune",
     "The Lure of Distant Shores", "Gathering the Harvest", "Gift of the Wily Broker",
     "Ephisis' Scale", "Before the Throne of Estavus", "Twist of Moebius",
@@ -198,7 +197,7 @@ object LinkEnricher:
     "Find the Best Path", "The Ambassadorial Gatekeeper",
   )
 
-  private val winterRituals = rulesFrom(
+  private val winterRituals = rulesFromName(
     "Withering Touch of Frost", "Crumbling Flesh and Withering Limbs",
     "Hungry Grasp of Despair", "Naeve's Twisting Blight", "Inevitable Collapse into Ruin",
     "Howling Despite of the Yawning Maw", "The Grave's Treacherous Edge",
@@ -219,7 +218,7 @@ object LinkEnricher:
     "Mark the Flesh Incorruptible", "Quickening Cold Meat",
   )
 
-  private val dayRituals = rulesFrom(
+  private val dayRituals = rulesFromName(
     "Bright Lantern of Ophis", "Revelation of the Jewel's Sparkling Heart",
     "Skein of Years", "Clear Lens of the Eternal River", "Sular's Promise",
     "Eyes of the Sun and Moon", "The Eye of the High Places",
@@ -235,7 +234,7 @@ object LinkEnricher:
     "Alignment of Mind and Blade", "Kimus' Glaring Eye", "Repel",
   )
 
-  private val nightRituals = rulesFrom(
+  private val nightRituals = rulesFromName(
     "Cast Off The Chain of Memory", "Infant Starts with a Blank Slate",
     "Incantation's Mystic Mask", "Masque of the Blinded Weaver",
     "Secrets for the Shadow Courier", "Secrets of the Empty Heart",
@@ -254,43 +253,46 @@ object LinkEnricher:
     "Still Waters, Running Deep",
   )
 
-  private val bourseResources = pluralRulesFrom("Mithril", "Weirwood", "White Granite", "Ilium")
+  private val bourseResources = rulesFromName("Mithril", "Weirwood", "White Granite", "Ilium")
 
-  private val herbs = pluralRulesFrom(
+  private val herbs = rulesFromName(
     "True Vervain", "Cerulean Mazzarine", "Imperial Roseweald",
     "Marrowort", "Bladeroot", "Realmsroot",
   )
 
-  private val metals = pluralRulesFrom("Green Iron", "Orichalcum", "Tempest Jade", "Weltsilver")
+  private val metals = rulesFromName("Green Iron", "Orichalcum", "Tempest Jade", "Weltsilver")
 
-  private val forestMaterials = pluralRulesFrom("Ambergelt", "Beggar's Lye", "Dragonbone", "Iridescent Gloaming")
+  private val forestMaterials = rulesFromName("Ambergelt", "Beggar's Lye", "Dragonbone", "Iridescent Gloaming")
 
-  private val materials = rulesFrom("Liao", "True Liao") ++ List(
-    custom("Crystal Mana|Mana Crystals?", "Crystal Mana"),
+  private val materials = rulesFromName("Liao", "True Liao") ++ rulesFromPattern(
+    ("Crystal Mana|Mana Crystals?", "Crystal Mana"),
   )
 
-  private val titles = rulesFrom(
+  private val titles = rulesFromName(
     "Senator", "General", "Cardinal", "Grandmaster", "Ambassador", "Gatekeeper", "Warmage",
   )
 
-  private val locations = rulesFrom("Anvil") ++ List(
-    custom("(The )?Sentinel Gate", "Sentinel Gate"),
+  private val locations = rulesFromName("Anvil") ++ rulesFromPattern(
+    ("(The )?Sentinel Gate", "Sentinel Gate"),
   )
 
-  private val varushkanSovereigns = List(
-    custom("(The )?Charnel Lord",    "The Charnel Lord",    Some(Category.TheCharnelLord)),
-    custom("(The )?Night Below",     "The Night Below",     Some(Category.TheNightBelow)),
-    custom("(The )?Howling Queen",   "The Howling Queen",   Some(Category.TheHowlingQueen)),
-    custom("(The )?Pale Lady",       "The Pale Lady",       Some(Category.ThePaleLady)),
-    custom("(The )?Father of Wolves","The Father of Wolves",Some(Category.TheFatherOfWolves)),
-    custom("(The )?Lullaby",         "The Lullaby",         Some(Category.TheLullaby)),
-    custom("(The )?Thin Man",        "The Thin Man",        Some(Category.TheThinMan)),
-    custom("(The )?Tallowman",       "The Tallowman",       Some(Category.TheTallowman)),
-    custom("(The )?Shadowsmith",     "The Shadowsmith",     Some(Category.TheShadowsmith)),
-    custom("Dho'uala|Lady of the Semmerlak|Queen of the Drowned", "Dho'uala", Some(Category.`Dho'uala`)),
+  private val varushkanSovereigns = rulesFromPattern(
+    ("(The )?(Charnel Lord|Lord of the Crows|Battlefed|Moundshroud|King Beneath the Hill|Branocbound|Irontooth|Boyar of the Broken Barrow)", "Charnel Lord", Category.CharnelLord),
+    ("(The )?(Night Below|Blackdamp|Waiting Dark|Grasping Dark|Thieving Dark|Fly-the-light|Shadow-in-shadows|Eyes in the Night|Dark-Below-The-Mountain|Extinguished Sun|Shadowcreeper|Watcher-in-the-Corner|Nights-haven|Black-heart|Abyssal Lady)", "Night Below", Category.NightBelow),
+    ("Dho'uala|Spirit of Dark Water|Light-in-the-Depths|Netripper|Undertow|Queen of the Drowned|She-Who-Keeps-What-She-Catches|Lady of the Semmerlak", "Dho'uala", Category.`Dho'uala`),
   )
 
-  private val heralds = categorizedRulesFrom(
+  private val volodny = rulesFromPattern(
+    ("(The )?Volodny",       "Volodny"),
+    ("Bas Celik",            "Volodny"),
+    ("Koshiev the White",    "Volodny"),
+    ("Górować",              "Volodny"),
+    ("(The )?Shadowsmith",   "Volodny"),
+    ("Kareina of the Swans", "Volodny"),
+    ("Breknia",              "Volodny"),
+  )
+
+  private val heralds = rulesFromName(
     // Heralds of Phaleron (Day)
     "Elioe"     -> Category.Elioe,
     "Lioc"      -> Category.Lioc,
@@ -312,12 +314,12 @@ object LinkEnricher:
     "Temper"    -> Category.Temper,
   )
 
-  private val otherSpirits = categorizedRulesFrom(
+  private val otherSpirits = rulesFromName(
     // Wintermark
     "Sydanjaa" -> Category.Sydanjaa,
   )
 
-  private val magicItems = rulesFrom(
+  private val magicItems = rulesFromName(
     // Daggers
     "Scorpion's Sting",
     // One-handed Weapons
@@ -437,12 +439,32 @@ object LinkEnricher:
   )
   // format: on
 
-  val rules: List[Rule] = (
-    eternals ++ nations ++ foreignNations ++ barbarianNations ++ regions ++ sovereignty ++ titles ++ locations ++
-      springRituals ++ summerRituals ++ autumnRituals ++ winterRituals ++ dayRituals ++ nightRituals ++
-      bourseResources ++ metals ++ forestMaterials ++ herbs ++ materials ++
-      varushkanSovereigns ++ heralds ++ otherSpirits ++ magicItems
-  ).sortBy(_.page.length)(using Ordering[Int].reverse)
+  val rules: List[Rule] = List(
+    eternals,
+    nations,
+    foreignNations,
+    barbarianNations,
+    regions,
+    sovereignty,
+    titles,
+    locations,
+    springRituals,
+    summerRituals,
+    autumnRituals,
+    winterRituals,
+    dayRituals,
+    nightRituals,
+    bourseResources,
+    metals,
+    forestMaterials,
+    herbs,
+    materials,
+    varushkanSovereigns,
+    volodny,
+    heralds,
+    otherSpirits,
+    magicItems,
+  ).flatten.sortBy(_.page.length)(using Ordering[Int].reverse)
 
   private val linkPattern: Regex = """\[[^\]]*\]\(<[^>]*>\)""".r
 
@@ -450,10 +472,10 @@ object LinkEnricher:
     text: String,
     pageUri: String => Uri,
     rules: List[Rule] = rules,
-  ): (String, List[Category & TextCategory]) =
+  ): (String, List[Category & Text]) =
     val initialLinks            = linkPattern.findAllMatchIn(text).map(m => (m.start, m.end)).toList
     val (result, _, categories) = rules
-      .foldLeft((text, initialLinks, List.empty[Category & TextCategory])) {
+      .foldLeft((text, initialLinks, List.empty[Category & Text])) {
         case ((current, links, cats), Rule(pattern, page, category)) =>
           pattern
             .findAllMatchIn(current)

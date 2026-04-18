@@ -60,7 +60,7 @@ case class WikiPage(
 
   lazy val parsedCategories: Set[Category] = categorySet.flatMap(Category.fromString)
 
-  lazy val mainCategories = parsedCategories.collect { case c: MainCategory => c }
+  lazy val mainCategories = parsedCategories.collect { case c: Main => c }
 
 case class ParsedPage(
   text: Elem,

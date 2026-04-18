@@ -6,10 +6,10 @@ import cats.effect.std.Semaphore
 import cats.syntax.flatMap.*
 import fs2.Stream
 import io.circe.Decoder
-import org.http4s.{ProductComment, ProductId, Status, Uri}
+import org.http4s.{ProductComment, ProductId, Uri}
 import org.http4s.circe.CirceEntityDecoder.*
 import org.http4s.client.Client
-import org.http4s.client.middleware.{GZip, Logger as LoggerMiddle, Retry, RetryPolicy}
+import org.http4s.client.middleware.{GZip, Logger as LoggerMiddle}
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.headers.`User-Agent`
 import org.typelevel.log4cats.Logger
@@ -83,7 +83,7 @@ class WikiClient(client: Client[IO], val wiki: Uri):
     )
     client.expect[ParsedPage](uri)
 
-  def renderedFirstSection(page: ParsedPage): IO[(String, List[Category & TextCategory])] =
+  def renderedFirstSection(page: ParsedPage): IO[(String, List[Category & Text])] =
     IO.blocking {
       val (text, categories) = XMLRender.render(page.text, wiki, pageUri, "table")
       val trimmed            = text
@@ -99,12 +99,6 @@ class WikiClient(client: Client[IO], val wiki: Uri):
     }
 
 object WikiClient:
-  private val retryPolicy: RetryPolicy[IO] = RetryPolicy[IO](
-    backoff = RetryPolicy.exponentialBackoff(maxWait = 1.minute, maxRetry = 5),
-    retriable =
-      (req, result) => RetryPolicy.defaultRetriable(req, result) || result.exists(_.status == Status.TooManyRequests),
-  )
-
   private def throttled(client: Client[IO], minGap: FiniteDuration): Resource[IO, Client[IO]] =
     for
       sem       <- Resource.eval(Semaphore[IO](1))
@@ -139,5 +133,4 @@ object WikiClient:
         ),
       )
       .flatMap(throttled(_, 300.millis))
-      .map(Retry(retryPolicy))
       .map(new WikiClient(_, API))

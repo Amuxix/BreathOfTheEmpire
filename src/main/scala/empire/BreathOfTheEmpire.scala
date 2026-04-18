@@ -8,7 +8,7 @@ import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import retry.*
-import wiki.{Category, MainCategory, Page, Wiki}
+import wiki.{Category, Main, Page, Wiki}
 
 import java.nio.file.NoSuchFileException
 import java.time.Instant
@@ -33,7 +33,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
   private def writeLastInstant(path: Path, instant: Instant): IO[Unit] =
     Stream.emit(instant.toString).through(Files[IO].writeUtf8Lines(path)).compile.drain
 
-  def publishCategory(category: MainCategory): PublishCategory = category match
+  def publishCategory(category: Main): PublishCategory = category match
     case Category.WindsOfMagic    => PublishCategory.Magic
     case Category.Plenipotentiary => PublishCategory.Magic
     case Category.Rituals         => PublishCategory.Magic
@@ -48,19 +48,18 @@ object BreathOfTheEmpire extends IOApp.Simple:
     case Category.WindsOfFortune  => PublishCategory.WindOfFortune
 
   val toArticle: Pipe[IO, Page, Article] =
-    _.map {
-      case Page(title, year, season, mainCategory, extraCategories, textCategories, opportunities, uri, extraInfo) =>
-        Article(
-          title,
-          year,
-          season,
-          publishCategory(mainCategory),
-          mainCategory.name,
-          (extraCategories.map(_.name) ++ textCategories.map(_.name)).distinct,
-          opportunities,
-          uri,
-          extraInfo,
-        )
+    _.map { case Page(title, year, season, mainCategory, extraCategories, opportunities, uri, extraInfo) =>
+      Article(
+        title,
+        year,
+        season,
+        publishCategory(mainCategory),
+        mainCategory.name,
+        extraCategories.map(_.name),
+        opportunities,
+        uri,
+        extraInfo,
+      )
     }
 
   def startingInstant(
@@ -97,14 +96,19 @@ object BreathOfTheEmpire extends IOApp.Simple:
     lastInstant: Path,
     interval: FiniteDuration,
   )(using Logger[IO]): Stream[IO, Unit] =
-    val retryPolicy = RetryPolicies.capDelay(6.hours, RetryPolicies.exponentialBackoff[IO](interval))
-
     def publishWithRetry(instant: Instant): IO[Instant] =
       retryingOnErrors(publishNewArticlesCreatedAfter(wiki, discord, instant))(
-        policy = retryPolicy,
-        errorHandler = ResultHandler.retryOnAllErrors((err, details) =>
-          Logger[IO].warn(err)(s"Wiki fetch failed, retrying (attempt ${details.retriesSoFar + 1})..."),
-        ),
+        policy = RetryPolicies.capDelay(6.hours, RetryPolicies.exponentialBackoff[IO](interval)),
+        errorHandler = ResultHandler.retryOnAllErrors { (err, details) =>
+          val next = details.nextStepIfUnsuccessful match
+            case RetryDetails.NextStep.GiveUp                                  =>
+              "Giving up"
+            case RetryDetails.NextStep.DelayAndRetry(delay) if delay >= 1.hour =>
+              s"Retrying in ${delay.toMinutes / 60.0}h"
+            case RetryDetails.NextStep.DelayAndRetry(delay)                    =>
+              s"Retrying in ${delay.toMinutes}m"
+          Logger[IO].warn(err)(s"Request threw an exception on attempt #${details.retriesSoFar + 1}, $next...")
+        },
       )
 
     Stream
