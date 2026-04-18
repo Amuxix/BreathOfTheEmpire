@@ -283,13 +283,13 @@ object LinkEnricher:
   )
 
   private val volodny = rulesFromPattern(
-    ("(The )?Volodny",       "Volodny"),
-    ("Bas Celik",            "Volodny"),
-    ("Koshiev the White",    "Volodny"),
-    ("Górować",              "Volodny"),
-    ("(The )?Shadowsmith",   "Volodny"),
-    ("Kareina of the Swans", "Volodny"),
-    ("Breknia",              "Volodny"),
+    ("(The )?Volodny",       "Volodny", Category.Volodny),
+    ("Bas Celik",            "Volodny", Category.Volodny),
+    ("Koshiev the White",    "Volodny", Category.Volodny),
+    ("Górować",              "Volodny", Category.Volodny),
+    ("(The )?Shadowsmith",   "Volodny", Category.Volodny),
+    ("Kareina of the Swans", "Volodny", Category.Volodny),
+    ("Breknia",              "Volodny", Category.Volodny),
   )
 
   private val heralds = rulesFromName(
