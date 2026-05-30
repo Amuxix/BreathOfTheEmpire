@@ -26,7 +26,7 @@ object Opportunities:
     season: Season,
   ) =
     table match
-      case renderedTitleExtractor(title, body) => Opportunity(`type`, title, body, tags, page, year, season)
+      case renderedTitleExtractor(title, body) => Opportunity(`type`, LinkEnricher.removeLinks(title), body, tags, page, year, season)
 
   private def inner(wiki: Uri, pageUri: String => Uri, page: Uri, year: Int, season: Season)(
     node: Node,

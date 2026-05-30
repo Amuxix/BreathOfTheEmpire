@@ -466,7 +466,7 @@ object LinkEnricher:
     magicItems,
   ).flatten.sortBy(_.page.length)(using Ordering[Int].reverse)
 
-  private val linkPattern: Regex = """\[[^\]]*\]\(<[^>]*>\)""".r
+  private val linkPattern: Regex = """\[([^\]]*)\]\(<[^>]*>\)""".r
 
   def enrich(
     text: String,
@@ -496,3 +496,5 @@ object LinkEnricher:
             }
       }
     (result, categories)
+
+  def removeLinks(text: String): String = linkPattern.replaceAllIn(text, "$1")
