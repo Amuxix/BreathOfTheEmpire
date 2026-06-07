@@ -2,6 +2,7 @@ package wiki
 
 import empire.{Opportunity, OpportunityType, Season}
 import org.http4s.Uri
+import wiki.LinkHelper.removeLinks
 import wiki.XMLRender.{hasClass, styleContains}
 
 import scala.xml.{Elem, Node}
@@ -27,7 +28,7 @@ object Opportunities:
   ) =
     table match
       case renderedTitleExtractor(title, body) =>
-        Opportunity(`type`, LinkEnricher.removeLinks(title), body, tags, page, year, season)
+        Opportunity(`type`, title.removeLinks, body, tags, page, year, season)
 
   private def inner(wiki: Uri, pageUri: String => Uri, page: Uri, year: Int, season: Season)(
     node: Node,

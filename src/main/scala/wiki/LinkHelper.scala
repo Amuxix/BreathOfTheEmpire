@@ -4,7 +4,7 @@ import org.http4s.Uri
 
 import scala.util.matching.Regex
 
-object LinkEnricher:
+object LinkHelper:
   case class Rule(pattern: Regex, page: String, category: Option[Category & Text] = None)
 
   private def insensitiveWord(term: String): Regex =
@@ -468,33 +468,33 @@ object LinkEnricher:
 
   private val linkPattern: Regex = """\[([^\]]*)\]\(<[^>]*>\)""".r
 
-  def enrich(
-    text: String,
-    pageUri: String => Uri,
-    rules: List[Rule] = rules,
-  ): (String, List[Category & Text]) =
-    val initialLinks            = linkPattern.findAllMatchIn(text).map(m => (m.start, m.end)).toList
-    val (result, _, categories) = rules
-      .foldLeft((text, initialLinks, List.empty[Category & Text])) {
-        case ((current, links, cats), Rule(pattern, page, category)) =>
-          pattern
-            .findAllMatchIn(current)
-            .find(m => !links.exists((s, e) => m.start >= s && m.end <= e))
-            .fold((current, links, cats)) { m =>
-              val uri          = pageUri(page).renderString
-              val replacement  = s"[${m.matched}](<$uri>)"
-              val delta        = replacement.length - (m.end - m.start)
-              val shiftedLinks = links.map {
-                case (s, e) if s >= m.end => (s + delta, e + delta)
-                case link                 => link
+  extension (text: String)
+    def addLinks(
+      pageUri: String => Uri,
+      rules: List[Rule] = rules,
+    ): (String, List[Category & Text]) =
+      val initialLinks            = linkPattern.findAllMatchIn(text).map(m => (m.start, m.end)).toList
+      val (result, _, categories) = rules
+        .foldLeft((text, initialLinks, List.empty[Category & Text])) {
+          case ((current, links, cats), Rule(pattern, page, category)) =>
+            pattern
+              .findFirstMatchIn(current)
+              .find(m => !links.exists((s, e) => m.start >= s && m.end <= e))
+              .fold((current, links, cats)) { m =>
+                val uri          = pageUri(page).renderString
+                val replacement  = s"[${m.matched}](<$uri>)"
+                val delta        = replacement.length - (m.end - m.start)
+                val shiftedLinks = links.map {
+                  case (s, e) if s >= m.end => (s + delta, e + delta)
+                  case link                 => link
+                }
+                (
+                  current.patch(m.start, replacement, m.end - m.start),
+                  (m.start, m.start + replacement.length) :: shiftedLinks,
+                  cats ++ category.toList,
+                )
               }
-              (
-                current.patch(m.start, replacement, m.end - m.start),
-                (m.start, m.start + replacement.length) :: shiftedLinks,
-                cats ++ category.toList,
-              )
-            }
-      }
-    (result, categories)
+        }
+      (result, categories)
 
-  def removeLinks(text: String): String = linkPattern.replaceAllIn(text, "$1")
+    def removeLinks: String = linkPattern.replaceAllIn(text, "$1")

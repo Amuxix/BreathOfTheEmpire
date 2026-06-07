@@ -1,6 +1,7 @@
 package wiki
 
 import org.http4s.Uri
+import wiki.LinkHelper.addLinks
 
 import scala.util.matching.Regex
 import scala.xml.{Elem, Node, Text as XmlText}
@@ -77,4 +78,4 @@ object XMLRender:
     pageUri: String => Uri,
     ignoredLabels: String*,
   ): (String, List[Category & Text]) =
-    LinkEnricher.enrich(inner(wiki, ignoredLabels*)("", node), pageUri)
+    inner(wiki, ignoredLabels*)("", node).addLinks(pageUri)
