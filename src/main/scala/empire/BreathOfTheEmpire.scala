@@ -44,6 +44,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
     case Category.MagicItems      => PublishCategory.Item
     case Category.SenateMotion    => PublishCategory.Motion
     case Category.Mandate         => PublishCategory.Mandate
+    case Category.ImperialAddress => PublishCategory.WindOfFortune
     case Category.TradeWinds      => PublishCategory.WindOfFortune
     case Category.WindsOfFortune  => PublishCategory.WindOfFortune
 
@@ -90,14 +91,9 @@ object BreathOfTheEmpire extends IOApp.Simple:
           Logger[IO].debug(s"Published ${list.map(_(1)).sum} articles/opportunities.").as(list.map(_(0)).max)
         }
 
-  def stream(
-    wiki: Wiki,
-    discord: Discord,
-    lastInstant: Path,
-    interval: FiniteDuration,
-  )(using Logger[IO]): Stream[IO, Unit] =
-    def publishWithRetry(instant: Instant): IO[Instant] =
-      retryingOnErrors(publishNewArticlesCreatedAfter(wiki, discord, instant))(
+  extension [A](action: IO[A])
+    private def withRetry(interval: FiniteDuration)(using Logger[IO]): IO[A] =
+      retryingOnErrors(action)(
         policy = RetryPolicies.capDelay(6.hours, RetryPolicies.exponentialBackoff[IO](interval)),
         errorHandler = ResultHandler.retryOnAllErrors { (err, details) =>
           val next = details.nextStepIfUnsuccessful match
@@ -111,10 +107,16 @@ object BreathOfTheEmpire extends IOApp.Simple:
         },
       )
 
+  def stream(
+    wiki: Wiki,
+    discord: Discord,
+    lastInstant: Path,
+    interval: FiniteDuration,
+  )(using Logger[IO]): Stream[IO, Unit] =
     Stream
       .eval(startingInstant(lastInstant, interval))
-      .evalMap(publishWithRetry)
-      .flatMap(Stream.iterateEval(_)(publishWithRetry))
+      .evalMap(publishNewArticlesCreatedAfter(wiki, discord, _).withRetry(interval))
+      .flatMap(Stream.iterateEval(_)(publishNewArticlesCreatedAfter(wiki, discord, _).withRetry(interval)))
       .meteredStartImmediately(interval)
       .evalMap(_ => writeLastInstant(lastInstant, Instant.now))
 

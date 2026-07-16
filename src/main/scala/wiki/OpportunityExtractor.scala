@@ -2,12 +2,13 @@ package wiki
 
 import empire.{Opportunity, OpportunityType, Season}
 import org.http4s.Uri
-import wiki.LinkHelper.removeLinks
+import wiki.Category.extractCategories
+import wiki.LinkHelper.withoutLinks
 import wiki.XMLRender.{hasClass, styleContains}
 
 import scala.xml.{Elem, Node}
 
-object Opportunities:
+object OpportunityExtractor:
   extension (elem: Node)
     private def allOf(label: String): List[Node]        = elem.child.toList.collect {
       case elem: Elem if elem.label == label => elem
@@ -28,7 +29,7 @@ object Opportunities:
   ) =
     table match
       case renderedTitleExtractor(title, body) =>
-        Opportunity(`type`, title.removeLinks, body, tags, page, year, season)
+        Opportunity(`type`, title.withoutLinks, body, tags, page, year, season)
 
   private def inner(wiki: Uri, pageUri: String => Uri, page: Uri, year: Int, season: Season)(
     node: Node,
@@ -41,9 +42,10 @@ object Opportunities:
         val rows          = elem.firstChild("tbody").allOf("tr")
         val opportunities = rows match
           case titleRow :: secondRow :: _ =>
-            lazy val (table, textCategories) = XMLRender.render(elem, wiki, pageUri)
-            lazy val tags                    = textCategories.map(_.name).distinct
-            lazy val hasType                 = secondRow.firstChild("td").exists(XMLRender.render(_, wiki, pageUri)._1.contains("Type"))
+            lazy val table   = XMLRender.render(elem, wiki, pageUri)
+            lazy val tags    = Category.sort(table.extractCategories).map(_.name)
+            lazy val hasType =
+              secondRow.firstChild("td").exists(XMLRender.render(_, wiki, pageUri).contains("Type"))
             titleRow.firstChild("td").toList.collect {
               case titleCell: Elem if titleCell.styleContains("background-color: LightBlue".r) && hasType =>
                 createOpportunity(
@@ -75,7 +77,7 @@ object Opportunities:
         }
     (opportunities ++ newOpportunities, updatedAnchor)
 
-  def extractOpportunities(
+  def apply(
     pageSection: ParsedPage,
     wiki: Uri,
     pageUri: String => Uri,

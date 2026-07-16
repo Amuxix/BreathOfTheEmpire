@@ -15,5 +15,5 @@ case class Article(
   extraInfo: String,
 ):
   lazy val categories: List[String] =
-    s"$season $year" +: mainCategory +: (extraCategories ++ opportunities.headOption.map(_ => "Opportunity"))
+    s"$season $year" +: mainCategory +: (opportunities.headOption.map(_ => "Opportunity").toList ++ extraCategories)
   lazy val show: String             = s"[${categories.mkString(", ")}] $title"

@@ -39,13 +39,15 @@ object XMLRender:
           case "h2"                                   => RenderWithPrefix("# ")
           case "h3"                                   => RenderWithPrefix("## ")
           case "big" | "h4" => RenderWithPrefix("### ")
-          case "small" => RenderWithPrefix("-# ")
-          case "li"    => RenderWithPrefix("- ")
-          case "b"     => RenderWithWrapper("**")
-          case "i"     => RenderWithWrapper("*")
-          case "s"     => RenderWithWrapper("__")
-          case "tr"    => RenderWithSuffix("\n")
-          case "td"    => RenderWithSuffix("\t")
+          case "small"                          => RenderWithPrefix("-# ")
+          case "li"                             => RenderWithPrefix("- ")
+          case "b"                              => RenderWithWrapper("**")
+          case "i"                              => RenderWithWrapper("*")
+          case "s"                              => RenderWithWrapper("~~")
+          case "u"                              => RenderWithWrapper("__")
+          case "tr"                             => RenderWithSuffix("\n")
+          case "td"                             => RenderWithSuffix("\t")
+          case "ul" if elem.hasClass("gallery") => Skip
           case "span" | "ul" | "sup " | "sup" | "table" | "tbody" => Render
           case "div" if elem.hasClass("mw-parser-output")                                => Render
           case "div" if elem.styleContains("float: ?right".r)                            => Skip
@@ -77,5 +79,5 @@ object XMLRender:
     wiki: Uri,
     pageUri: String => Uri,
     ignoredLabels: String*,
-  ): (String, List[Category & Text]) =
+  ): String =
     inner(wiki, ignoredLabels*)("", node).addLinks(pageUri)

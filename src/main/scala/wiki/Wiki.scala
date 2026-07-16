@@ -3,9 +3,11 @@ package wiki
 import cats.effect.IO
 import fs2.{Pipe, Stream}
 import org.typelevel.log4cats.Logger
+import wiki.Category.extractCategories
 import wiki.Wiki.yearSeasonRegex
 
 import java.time.Instant
+import scala.util.chaining.*
 import scala.util.matching.Regex
 
 class Wiki(client: WikiClient, categoryBatch: Int):
@@ -37,28 +39,54 @@ class Wiki(client: WikiClient, categoryBatch: Int):
       case logevent if !overviewRegex.matches(logevent.title) => logevent.pageid
     }
 
+  extension (page: ParsedPage)
+    def renderedAndCategorised(firstSectionOnly: Boolean): IO[(ParsedPage, String, List[(Category & Text, Int)])] =
+      IO.blocking {
+        val text       = XMLRender.render(page.text, client.wiki, client.pageUri, "table")
+        val categories = text.extractCategories
+        val trimmed    = text
+          .replaceFirst("\n*#+ [^\n]+\n*", "")                                       // remove first title
+          .pipe(line => if firstSectionOnly then line.takeWhile(_ != '#') else line) // keep only till text title
+          .split("\n")
+          .flatMap {
+            case string if string.matches("^- .+?$") => None
+            case string                              => Some(string)
+          }
+          .mkString("\n")                                                            // remove bullet points
+        (page, trimmed, categories)
+      }
+
   private val toPage: Pipe[IO, WikiPage, Page] =
     _.collect {
-      case page @ WikiPage(Some(title), Some(pageID), _)
-          if !overviewRegex.matches(title) && page.mainCategories.nonEmpty && page.yearAndSeason.nonEmpty =>
-        val (year, season) = page.yearAndSeason.get
-        val pageUri        = client.pageUri(title)
+      case wikiPage @ WikiPage(Some(title), Some(pageID), _)
+          if !overviewRegex.matches(title) && wikiPage.mainCategories.nonEmpty && wikiPage.yearAndSeason.nonEmpty =>
+        val (year, season) = wikiPage.yearAndSeason.get
+        (wikiPage, title, pageID, year, season)
+    }.evalMap { (wikiPage, title, pageID, year, season) =>
+      val pageUri = client.pageUri(title)
 
-        client.parsedPage(pageID).flatMap { pageSection =>
-          client.renderedFirstSection(pageSection).map { (text, categories) =>
-            Page(
-              title,
-              year,
-              season,
-              page.mainCategories.minBy(_.ordinal),
-              (page.parsedCategories ++ categories).toList.collect { case c: (Extra | Text) => c }.sortBy(_.ordinal),
-              Opportunities.extractOpportunities(pageSection, client.wiki, client.pageUri, pageUri, year, season),
-              pageUri,
-              text,
-            )
-          }
+      client
+        .parsedPage(pageID)
+        .flatMap { parsedPage =>
+          val firstSectionOnly = wikiPage.mainCategory match
+            case Category.SenateMotion => false
+            case _                     => true
+
+          parsedPage.renderedAndCategorised(firstSectionOnly)
         }
-    }.evalMap(identity)
+        .map { (parsedPage, renderedText, categories) =>
+          Page(
+            title,
+            year,
+            season,
+            wikiPage.mainCategory,
+            Category.sort(wikiPage.extraCategories ++ categories),
+            OpportunityExtractor(parsedPage, client.wiki, client.pageUri, pageUri, year, season),
+            pageUri,
+            renderedText,
+          )
+        }
+    }
 
   def pagesCreatedAfter(startInstant: Instant): Stream[IO, (Instant, Stream[IO, Page])] =
     client

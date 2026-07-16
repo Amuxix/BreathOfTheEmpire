@@ -83,21 +83,6 @@ class WikiClient(client: Client[IO], val wiki: Uri):
     )
     client.expect[ParsedPage](uri)
 
-  def renderedFirstSection(page: ParsedPage): IO[(String, List[Category & Text])] =
-    IO.blocking {
-      val (text, categories) = XMLRender.render(page.text, wiki, pageUri, "table")
-      val trimmed            = text
-        .replaceFirst("\n*#+ [^\n]+\n*", "") // remove first title
-        .takeWhile(_ != '#')                 // keep only till text title
-        .split("\n")
-        .flatMap {
-          case string if string.matches("^- .+?$") => None
-          case string                              => Some(string)
-        }
-        .mkString("\n")                      // remove bullet points
-      (trimmed, categories)
-    }
-
 object WikiClient:
   private def throttled(client: Client[IO], minGap: FiniteDuration): Resource[IO, Client[IO]] =
     for

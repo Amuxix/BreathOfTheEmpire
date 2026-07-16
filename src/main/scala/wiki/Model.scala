@@ -62,6 +62,10 @@ case class WikiPage(
 
   lazy val mainCategories = parsedCategories.collect { case c: Main => c }
 
+  lazy val mainCategory = mainCategories.minBy(_.ordinal)
+
+  lazy val extraCategories = parsedCategories.toList.collect { case c: (Extra | Text) => c -> 1 }
+
 case class ParsedPage(
   text: Elem,
 )
