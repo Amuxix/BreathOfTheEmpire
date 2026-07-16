@@ -201,7 +201,7 @@ object Category:
           val allMatches = rule.pattern.findAllMatchIn(noLinks).toList
           val matches    = allMatches.size
           if matches > 0 then
-            println(s"found ${rule.category.name}: ${allMatches.map(_.toString).distinct}")
+            // println(s"found ${rule.category.name}: ${allMatches.map(_.toString).distinct}")
             current :+ (rule.category -> matches)
           else current
         }
