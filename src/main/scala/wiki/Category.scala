@@ -154,7 +154,6 @@ enum Category(val section: Section):
   case Janon               extends Category(Section.Eternals) with Text
   case Lashonar            extends Category(Section.Eternals) with Text
   case Sadogua             extends Category(Section.Eternals) with Text
-  case Soghter             extends Category(Section.Eternals) with Text
   case WhisperGallery      extends Category(Section.Eternals) with Text
   // Varushkan Sovereigns
   case CharnelLord         extends Category(Section.Spirits) with Text
