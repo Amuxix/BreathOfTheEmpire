@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.instances.list.*
 import cats.syntax.foldable.*
-import empire.{Opportunity, OpportunityType, Season}
+import empire.Season
 import fs2.Pipe
 import fs2.Stream
 import net.dv8tion.jda.api.EmbedBuilder
@@ -25,6 +25,7 @@ class Discord(
   titlesChannels: List[TextChannel],
   commissionsChannels: List[TextChannel],
   maxDescriptionLength: Int,
+  maxFooterLength: Int,
 )(using Logger[IO]):
 
   private val sentenceEnd = "(?m)[.!?](?=\\s|$)".r
@@ -50,6 +51,18 @@ class Discord(
         .getOrElse(limit)
       extraInfo.take(cutoff).stripTrailing() + "\n\n### ..."
 
+  private def truncateCategories(categories: List[String], maxSize: Int): String =
+    categories match
+      case head :: tail if head.length <= maxSize =>
+        tail
+          .foldLeft((head, maxSize - head.length)) {
+            case ((acc, remaining), category) if remaining >= category.length =>
+              (acc + "  " + category, remaining - category.length)
+            case (acc, _)                                                     => acc
+          }(0)
+
+      case _ => ""
+
   extension (season: Season)
     def toColor: Color = season match
       case Season.Winter => Color(186, 225, 255)
@@ -59,25 +72,14 @@ class Discord(
 
   private def articleToMessageEmbed(article: Article): IO[MessageEmbed] =
     IO {
+      val description  = truncateExtraInfo(article.body, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n")
+      val footerLength = math.min(6000 - article.title.length - description.length, maxFooterLength)
       new EmbedBuilder()
         .setTitle(article.title)
-        .setDescription(truncateExtraInfo(article.extraInfo, maxDescriptionLength).replaceAll("\n{4,}", "\n\n\n"))
+        .setDescription(description)
         .setUrl(article.uri.toString)
-        .setFooter(article.categories.mkString("  "))
+        .setFooter(truncateCategories(article.categories, footerLength))
         .setColor(article.season.toColor)
-        .build()
-    }
-
-  private def opportunityToMessageEmbed(opportunity: Opportunity): IO[MessageEmbed] =
-    IO {
-      new EmbedBuilder()
-        .setTitle(opportunity.title)
-        .setDescription(opportunity.body)
-        .setUrl(opportunity.source.toString)
-        .setFooter(
-          (s"${opportunity.season} ${opportunity.year}" +: s"${opportunity.`type`}" +: opportunity.tags).mkString("  "),
-        )
-        .setColor(opportunity.season.toColor)
         .build()
     }
 
@@ -91,17 +93,11 @@ class Discord(
       case PublishCategory.Motion        => motionsChannels
       case PublishCategory.Magic         => magicChannels
       case PublishCategory.Item          => itemsChannels
-
-  private def assignOpportunitiesToPublishChannels(opportunity: Opportunity): List[TextChannel] =
-    opportunity.`type` match
-      case OpportunityType.Title      => titlesChannels
-      case OpportunityType.Commission => commissionsChannels
+      case PublishCategory.Title         => titlesChannels
+      case PublishCategory.Commission    => commissionsChannels
 
   private def logArticlePublishing(article: Article, channel: TextChannel) =
     Logger[IO].info(s"Publishing ${article.show} to ${channel.guild.getName}/${channel.name}")
-
-  private def logOpportunityPublishing(opportunity: Opportunity, channel: TextChannel) =
-    Logger[IO].info(s"Publishing ${opportunity.title} to ${channel.guild.getName}/${channel.name}")
 
   private def linkToPublishChannels[A](
     assignChannels: A => List[TextChannel],
@@ -125,11 +121,7 @@ class Discord(
       .as(())
 
   val publishAll: Pipe[IO, Article, Unit] =
-    _.broadcastThrough(
-      publish(assignArticleToPublishChannels, articleToMessageEmbed, logArticlePublishing),
-      _.flatMap(article => Stream.emits(article.opportunities))
-        .through(publish(assignOpportunitiesToPublishChannels, opportunityToMessageEmbed, logOpportunityPublishing)),
-    )
+    publish(assignArticleToPublishChannels, articleToMessageEmbed, logArticlePublishing)
 
 object Discord:
   def warnMissingGuilds(
@@ -187,5 +179,6 @@ object Discord:
         titlesChannels,
         commissionsChannels,
         config.maxDescriptionLength,
+        config.maxFooterLength,
       )
     }

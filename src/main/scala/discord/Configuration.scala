@@ -20,4 +20,5 @@ case class Configuration(
   titlesChannels: List[DiscordID],
   commissionsChannels: List[DiscordID],
   maxDescriptionLength: Int,
+  maxFooterLength: Int,
 ) derives ConfigReader

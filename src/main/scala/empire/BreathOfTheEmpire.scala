@@ -49,18 +49,75 @@ object BreathOfTheEmpire extends IOApp.Simple:
     case Category.WindsOfFortune  => PublishCategory.WindOfFortune
 
   val toArticle: Pipe[IO, Page, Article] =
-    _.map { case Page(title, year, season, mainCategory, extraCategories, opportunities, uri, extraInfo) =>
-      Article(
+    _.flatMap { case Page(title, year, season, mainCategory, extraCategories, opportunities, uri, extraInfo) =>
+      val mainArticle = Article(
         title,
         year,
         season,
         publishCategory(mainCategory),
         mainCategory.name,
-        extraCategories.map(_.name),
-        opportunities,
+        (if opportunities.nonEmpty then List("Opportunity") else List.empty) ++ extraCategories.map(_.name),
         uri,
         extraInfo,
       )
+
+      val opportunityArticles = opportunities.map {
+        case Opportunity(opportunityType, title, body, tags, source, year, season) =>
+          val publishCategory = opportunityType match
+            case OpportunityType.Title      => PublishCategory.Title
+            case OpportunityType.Commission => PublishCategory.Commission
+
+          Article(
+            title,
+            year,
+            season,
+            publishCategory,
+            opportunityType.toString,
+            tags,
+            source,
+            body,
+          )
+      }
+
+      Stream.emits(mainArticle +: opportunityArticles)
+    }
+
+  extension (text: String)
+    private def noFirstTitle     = text.replaceFirst("\n*#+ [^\n]+\n*", "")
+    private def noDateSection    = text.replaceFirst("#+ Date[^#]*", "")
+    private def onlyFirstSection = text.takeWhile(_ != '#') // keep only till text title
+    private def noLists          = text
+      .split("\n")
+      .flatMap {
+        case string if string.matches("^- .+?$") => None
+        case string                              => Some(string)
+      }
+      .mkString("\n")
+    private def condenseNewLines = text.replaceAll("\n+", "\n")
+    private def smallerTitles    = text.replaceAll("(?<!#)#(?!#)", "###")
+    private def boldToTitles     =
+      "(?:^|\\n)\\*\\*(.+?):?\\*\\*:? ?(.*?)(?=\n|$)".r
+        .replaceAllIn(
+          text,
+          regexMatch => {
+            val title = "### " + regexMatch.group(1)
+            val lines = regexMatch.group(2).split("\n").collect {
+              case string if !string.isBlank || string.startsWith("- ") => string.capitalize.trim
+            }
+            (title +: lines).mkString("\n")
+          },
+        )
+    private def noEmptySections  = text.replaceAll("#+ .+\n(?=#)", "")
+
+  private val refineArticles: Pipe[IO, Article, Article] =
+    _.map {
+      case article @ Article(_, _, _, PublishCategory.Motion, _, _, _, body)                             =>
+        article.copy(body = body.noFirstTitle.noDateSection.condenseNewLines.smallerTitles.noEmptySections)
+      case article @ Article(_, _, _, PublishCategory.Title | PublishCategory.Commission, _, _, _, body) =>
+        article.copy(body = body.noFirstTitle.boldToTitles.condenseNewLines.noEmptySections)
+      case article @ Article(_, _, _, _, _, _, _, body)                                                  =>
+        article.copy(body = body.noFirstTitle.onlyFirstSection.noLists.noEmptySections)
+
     }
 
   def startingInstant(
@@ -80,6 +137,7 @@ object BreathOfTheEmpire extends IOApp.Simple:
         .evalMap { (instant, pageStream) =>
           pageStream
             .through(toArticle)
+            .through(refineArticles)
             .through(discord.publishAll)
             .compile
             .toList

@@ -38,31 +38,12 @@ class Wiki(client: WikiClient, categoryBatch: Int):
       case logevent if !overviewRegex.matches(logevent.title) => logevent.pageid
     }
 
-  extension (text: String)
-    private def noFirstTitle     = text.replaceFirst("\n*#+ [^\n]+\n*", "")
-    private def noDateSection    = text.replaceFirst("#+ Date[^#]*", "")
-    private def onlyFirstSection = text.takeWhile(_ != '#') // keep only till text title
-    private def noLists          = text
-      .split("\n")
-      .flatMap {
-        case string if string.matches("^- .+?$") => None
-        case string                              => Some(string)
-      }
-      .mkString("\n")
-    private def condenseNewLines = text.replaceAll("\n+", "\n")
-
   extension (page: ParsedPage)
-    private def renderedAndCategorised(
-      mainCategory: Category & Main,
-    ): IO[(ParsedPage, String, List[(Category & Text, Int)])] =
+    private def renderedAndCategorised: IO[(ParsedPage, String, List[(Category & Text, Int)])] =
       IO {
         val text       = XMLRender.render(page.text, client.wiki, client.pageUri, "table")
         val categories = text.extractCategories
-        val trimmed    = mainCategory match
-          case Category.SenateMotion => text.noFirstTitle.noDateSection.condenseNewLines
-          case _                     => text.noFirstTitle.onlyFirstSection.noLists.condenseNewLines
-
-        (page, trimmed, categories)
+        (page, text, categories)
       }
 
   private val toPage: Pipe[IO, WikiPage, Page] =
@@ -76,7 +57,7 @@ class Wiki(client: WikiClient, categoryBatch: Int):
 
       client
         .parsedPage(pageID)
-        .flatMap(_.renderedAndCategorised(wikiPage.mainCategory))
+        .flatMap(_.renderedAndCategorised)
         .map { (parsedPage, renderedText, categories) =>
           Page(
             title,

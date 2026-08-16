@@ -1,6 +1,6 @@
 package discord
 
-import empire.{Opportunity, Season}
+import empire.Season
 import org.http4s.Uri
 
 case class Article(
@@ -10,10 +10,9 @@ case class Article(
   publishCategory: PublishCategory,
   mainCategory: String,
   extraCategories: List[String],
-  opportunities: List[Opportunity],
   uri: Uri,
-  extraInfo: String,
+  body: String,
 ):
   lazy val categories: List[String] =
-    s"$season $year" +: mainCategory +: (opportunities.headOption.map(_ => "Opportunity").toList ++ extraCategories)
+    s"$season $year" +: mainCategory +: extraCategories
   lazy val show: String             = s"[${categories.mkString(", ")}] $title"
