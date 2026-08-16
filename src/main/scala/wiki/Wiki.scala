@@ -7,7 +7,6 @@ import wiki.Category.extractCategories
 import wiki.Wiki.yearSeasonRegex
 
 import java.time.Instant
-import scala.util.chaining.*
 import scala.util.matching.Regex
 
 class Wiki(client: WikiClient, categoryBatch: Int):
@@ -39,20 +38,30 @@ class Wiki(client: WikiClient, categoryBatch: Int):
       case logevent if !overviewRegex.matches(logevent.title) => logevent.pageid
     }
 
+  extension (text: String)
+    private def noFirstTitle     = text.replaceFirst("\n*#+ [^\n]+\n*", "")
+    private def noDateSection    = text.replaceFirst("#+ Date[^#]*", "")
+    private def onlyFirstSection = text.takeWhile(_ != '#') // keep only till text title
+    private def noLists          = text
+      .split("\n")
+      .flatMap {
+        case string if string.matches("^- .+?$") => None
+        case string                              => Some(string)
+      }
+      .mkString("\n")
+    private def condenseNewLines = text.replaceAll("\n+", "\n")
+
   extension (page: ParsedPage)
-    def renderedAndCategorised(firstSectionOnly: Boolean): IO[(ParsedPage, String, List[(Category & Text, Int)])] =
-      IO.blocking {
+    private def renderedAndCategorised(
+      mainCategory: Category & Main,
+    ): IO[(ParsedPage, String, List[(Category & Text, Int)])] =
+      IO {
         val text       = XMLRender.render(page.text, client.wiki, client.pageUri, "table")
         val categories = text.extractCategories
-        val trimmed    = text
-          .replaceFirst("\n*#+ [^\n]+\n*", "")                                       // remove first title
-          .pipe(line => if firstSectionOnly then line.takeWhile(_ != '#') else line) // keep only till text title
-          .split("\n")
-          .flatMap {
-            case string if string.matches("^- .+?$") => None
-            case string                              => Some(string)
-          }
-          .mkString("\n")                                                            // remove bullet points
+        val trimmed    = mainCategory match
+          case Category.SenateMotion => text.noFirstTitle.noDateSection.condenseNewLines
+          case _                     => text.noFirstTitle.onlyFirstSection.noLists.condenseNewLines
+
         (page, trimmed, categories)
       }
 
@@ -67,13 +76,7 @@ class Wiki(client: WikiClient, categoryBatch: Int):
 
       client
         .parsedPage(pageID)
-        .flatMap { parsedPage =>
-          val firstSectionOnly = wikiPage.mainCategory match
-            case Category.SenateMotion => false
-            case _                     => true
-
-          parsedPage.renderedAndCategorised(firstSectionOnly)
-        }
+        .flatMap(_.renderedAndCategorised(wikiPage.mainCategory))
         .map { (parsedPage, renderedText, categories) =>
           Page(
             title,
