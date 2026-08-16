@@ -2,9 +2,15 @@ package wiki
 
 import scala.util.matching.Regex
 
-sealed class Rule(val pattern: Regex, val page: String)
-sealed class PageRule(pattern: Regex, page: String)                                    extends Rule(pattern, page)
-sealed class CategoryRule(pattern: Regex, page: String, val category: Category & Text) extends Rule(pattern, page)
+sealed class Rule(val pattern: Regex, val page: String, val replacement: Option[String])
+sealed class PageRule(pattern: Regex, page: String, replacement: Option[String] = None)
+    extends Rule(pattern, page, replacement)
+sealed class CategoryRule(
+  pattern: Regex,
+  page: String,
+  val category: Category & Text,
+  replacement: Option[String] = None,
+) extends Rule(pattern, page, replacement)
 
 object Rules:
 
@@ -17,12 +23,22 @@ object Rules:
 
     private def quoted: String = s"${Regex.quote(term)}s?".word.insensitive
 
+    private def notInName: String = s"(?<!\\b(di|i) \\b)$term"
+
   private def rulesFromPattern(
     f: String => Regex,
   )(entries: (String, String) | (String, String, Category & Text)*): List[Rule] =
     entries.toList.map {
       case (pattern, page)           => PageRule(f(pattern), page)
       case (pattern, page, category) => CategoryRule(f(pattern), page, category)
+    }
+
+  private def replacementRulesFromPattern(
+    f: String => Regex,
+  )(entries: (String, String, String) | (String, String, String, Category & Text)*): List[Rule] =
+    entries.toList.map {
+      case (pattern, replacement, page)           => PageRule(f(pattern), page, Some(replacement))
+      case (pattern, replacement, page, category) => CategoryRule(f(pattern), page, category, Some(replacement))
     }
 
   private def rulesFromPatternList(
@@ -178,58 +194,59 @@ object Rules:
     "Thule"   -> Category.Thule,
   )
 
-  private val regions = rulesFromName(
-    // Brass Coast
-    "Kahraman",
-    "Madruga",
-    "Segura",
-    "Feroz",
-    // Dawn
-    "Astolat",
-    "Semmerholm",
-    "Weirwater",
-    // Highguard
-    "Bastion",
-    "Casinea",
-    "Necropolis",
-    "Reikos",
-    // Imperial Orcs
-    "Skarsind",
-    // The League
-    "Holberg",
-    "Sarvos",
-    "Tassato",
-    "Temeschwar",
-    // The Marches
-    "Mitwold",
-    "Mournwold",
-    "Bregasland",
-    "Upwold",
-    // Navarr
-    "Hercynia",
-    "Miaren",
-    "Therunin",
-    "Liathaven",
-    // Urizen
-    "Morrow",
-    "Redoubt",
-    "Zenith",
-    "Spiral",
-    // Varushka
-    "Karov",
-    "Karsk",
-    "Miekarova",
-    "Volodmartz",
-    // Wintermark
-    "Hahnmark",
-    "Sermersuaq",
-    "Kallavesa",
-    "Skallahn",
-    // Other
-    "The Barrens",
-    "Ossium",
-    "Mareave",
-    "Sarangrave",
+  private val regions = replacementRulesFromPattern(_.notInName.word.r)(
+    List(
+      // Brass Coast
+      ("Kahraman", "Brass Coast"),
+      ("Madruga", "Brass Coast"),
+      ("Segura", "Brass Coast"),
+      ("Feroz", "Brass Coast"),
+      // Dawn
+      ("Astolat", "Dawn"),
+      ("Semmerholm", "Dawn"),
+      ("Weirwater", "Dawn"),
+      ("The Barrens", "Dawn"),
+      // Highguard
+      ("Bastion", "Highguard"),
+      ("Casinea", "Highguard"),
+      ("Necropolis", "Highguard"),
+      ("Reikos", "Highguard"),
+      // Imperial Orcs
+      ("Skarsind", "Imperial Orcs"),
+      ("Mareave", "Imperial Orcs"),
+      // The League
+      ("Holberg", "The League"),
+      ("Sarvos", "The League"),
+      ("Tassato", "The League"),
+      ("Temeschwar", "The League"),
+      // The Marches
+      ("Mitwold", "The Marches"),
+      ("Mournwold", "The Marches"),
+      ("Bregasland", "The Marches"),
+      ("Upwold", "The Marches"),
+      // Navarr
+      ("Hercynia", "Navarr"),
+      ("Miaren", "Navarr"),
+      ("Therunin", "Navarr"),
+      ("Liathaven", "Navarr"),
+      // Urizen
+      ("Morrow", "Urizen"),
+      ("Redoubt", "Urizen"),
+      ("Zenith", "Urizen"),
+      ("Spiral", "Urizen"),
+      ("Sarangrave", "Urizen"),
+      // Varushka
+      ("Karov", "Varushka"),
+      ("Karsk", "Varushka"),
+      ("Miekarova", "Varushka"),
+      ("Volodmartz", "Varushka"),
+      ("Ossium", "Varushka"),
+      // Wintermark
+      ("Hahnmark", "Wintermark"),
+      ("Sermersuaq", "Wintermark"),
+      ("Kallavesa", "Wintermark"),
+      ("Skallahn", "Wintermark"),
+    ).map((territory, nation) => (s"$territory(,? $nation)?", s"$territory, $nation", territory))*,
   ) ++ rulesFromPattern(_.word.insensitive.r)(
     ("Broc[eé]liande", "Brocéliande"),
   )

@@ -19,7 +19,7 @@ object LinkHelper:
             .find(m => !links.exists((s, e) => m.start >= s && m.end <= e))
             .fold((current, links)) { m =>
               val uri          = pageUri(rule.page).renderString
-              val replacement  = s"[${m.matched}](<$uri>)"
+              val replacement  = s"[${rule.replacement.getOrElse(m.matched)}](<$uri>)"
               val delta        = replacement.length - (m.end - m.start)
               val shiftedLinks = links.map {
                 case (s, e) if s >= m.end => (s + delta, e + delta)
