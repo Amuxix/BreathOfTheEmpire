@@ -1,6 +1,7 @@
 package wiki
 
 import org.http4s.Uri
+import wiki.EnrichmentHelper.enrich
 import wiki.LinkHelper.addLinks
 
 import scala.util.matching.Regex
@@ -80,4 +81,4 @@ object XMLRender:
     pageUri: String => Uri,
     ignoredLabels: String*,
   ): String =
-    inner(wiki, ignoredLabels*)("", node).addLinks(pageUri)
+    inner(wiki, ignoredLabels*)("", node).addLinks(pageUri).enrich

@@ -2,7 +2,7 @@ package wiki
 
 import scala.util.matching.Regex
 
-sealed class Rule(val pattern: Regex, val page: String, val replacement: Option[String])
+sealed case class Rule(pattern: Regex, page: String, replacement: Option[String])
 sealed class PageRule(pattern: Regex, page: String, replacement: Option[String] = None)
     extends Rule(pattern, page, replacement)
 sealed class CategoryRule(
