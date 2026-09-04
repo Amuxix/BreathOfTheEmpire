@@ -105,7 +105,7 @@ object Rules:
     (List("Lictors", "[Tt]he Punishers", "[Tt]he Hunters", "Sovereign Lords of the City of Bar and Bond", "Chainbound", "[Tt]he Binders", "Brass Magistrates", "([Tt]he )?Furious Ones", "Reckoners"),
       "Lictors", Category.Lictors),
     // Winter
-    (List("Agramant", "[Tt]he Howler", "[Tt]he Hunter", "Wendigo", "Devourer of the Fallen", "Voice of the Pines", "Blood-on-the-Snow", "Dream of Famine", "[Tt]he Whisperer", "[Tt]he Wastewalker", "([Tt]he )?Abominable One", "Horned Manticore", "Harvester of Graves", "Old Bloody Teeth", "Scrandaddy"),
+    (List("Agramant", "[Tt]he Howler", "[Tt]he Hunter", "Wendigo", "Devourer of the Fallen", "Voice (of|in) the Pines", "Blood-on-the-Snow", "Dream of Famine", "[Tt]he Whisperer", "[Tt]he Wastewalker", "([Tt]he )?Abominable One", "Horned Manticore", "Harvester of Graves", "Old Bloody Teeth", "Scrandaddy", "Twigsnap", "Giver of Gifts", "Wicked Liar", "Good Night", "Five True Words", "Friend of the Fearful", "Crying Child", "King of the Feast", "Faithful Friend"),
       "Agramant", Category.Agramant),
     (List("Kaela", "Lady of the Grim Host", "Sorrowful One", "End-of-Strength", "Lady of Oblivion", "Cold-Hearted", "Dark-Between-The-Stars", "Queen of Silence", "([Tt]he )?Black Dog", "Queen Esk", "la Reine qui siège sur le Trône Noir"),
       "Kaela", Category.Kaela),
@@ -910,6 +910,46 @@ object Rules:
     "Bishop's Chalice",
     "Almery of Silence",
   )
+
+  private val imperialArmies = rulesFromName(
+    "Argent Sword"          -> Category.ArgentSword,
+    "Autumn Hammers"        -> Category.AutumnHammers,
+    "Black Thorns"          -> Category.BlackThorns,
+    "Bloodcloaks"           -> Category.Bloodcloaks,
+    "Bounders"              -> Category.Bounders,
+    "Boyar's Hasta"         -> Category.BoyarsHasta,
+    "Burning Falcon"        -> Category.BurningFalcon,
+    "Citadel Guard"         -> Category.CitadelGuard,
+    "Drakes"                -> Category.Drakes,
+    "Eastern Sky"           -> Category.EasternSky,
+    "Fire of the South"     -> Category.FireOfTheSouth,
+    "Fist of the Mountains" -> Category.FistOfTheMountains,
+    "Freeborn Storm"        -> Category.FreebornStorm,
+    "Golden Axe"            -> Category.GoldenAxe,
+    "Golden Sun"            -> Category.GoldenSun,
+    "Granite Pillar"        -> Category.GranitePillar,
+    "Green Shield"          -> Category.GreenShield,
+    "Gryphon's Pride"       -> Category.GryphonsPride,
+    "Hounds of Glory"       -> Category.HoundsOfGlory,
+    "Iron Helms"            -> Category.IronHelms,
+    "Isaella's Dance"       -> Category.IsaellasDance,
+    "Lions of Adelmar"      -> Category.LionsOfAdelmar,
+    "Narwhal's Spear"       -> Category.NarwhalsSpear,
+    "Northern Eagle"        -> Category.NorthernEagle,
+    "Pilgrim's Defiance"    -> Category.PilgrimsDefiance,
+    "Quiet Step"            -> Category.QuietStep,
+    "Red Wind Corsairs"     -> Category.RedWindCorsairs,
+    "Seventh Wave"          -> Category.SeventhWave,
+    "Sparrows Reckoning"    -> Category.SparrowsReckoning,
+    "Star Forged"           -> Category.StarForged,
+    "Strong Reeds"          -> Category.StrongReeds,
+    "Summer Storm"          -> Category.SummerStorm,
+    "Towerjacks"            -> Category.Towerjacks,
+    "Tusks"                 -> Category.Tusks,
+    "Valiant Pegasus"       -> Category.ValiantPegasus,
+    "Winter Sun"            -> Category.WinterSun,
+    "Wolves of War"         -> Category.WolvesOfWar,
+  )
   // format: on
 
   val allRules: List[Rule] = List(
@@ -938,4 +978,5 @@ object Rules:
     magicItems,
     eternals,
     varushkanSovereigns,
+    imperialArmies,
   ).flatten.sortBy(_.page.length)(using Ordering[Int].reverse)

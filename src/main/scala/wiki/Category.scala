@@ -11,7 +11,7 @@ sealed trait CustomName(val customName: String):
   override lazy val name: String = customName
 
 enum Section:
-  case Wind, Senate, Nations, OtherNations, Eternals, Rituals, TheWay, MagicItems, Spirits
+  case Wind, Senate, Nations, OtherNations, Eternals, Rituals, TheWay, MagicItems, Spirits, Armies
 
 enum Category(val section: Section):
   case MilitaryCouncil     extends Category(Section.Wind) with Main with CustomName("Wind of War")
@@ -178,6 +178,44 @@ enum Category(val section: Section):
   case Vallorn             extends Category(Section.Spirits) with Text
   case Sydanjaa            extends Category(Section.Spirits) with Text
   case Volodny             extends Category(Section.Spirits) with Text
+  // Imperial Armies
+  case ArgentSword         extends Category(Section.Armies) with Text
+  case AutumnHammers       extends Category(Section.Armies) with Text
+  case BlackThorns         extends Category(Section.Armies) with Text
+  case Bloodcloaks         extends Category(Section.Armies) with Text
+  case Bounders            extends Category(Section.Armies) with Text
+  case BoyarsHasta         extends Category(Section.Armies) with Text with CustomName("Boyar's Hasta")
+  case BurningFalcon       extends Category(Section.Armies) with Text
+  case CitadelGuard        extends Category(Section.Armies) with Text
+  case Drakes              extends Category(Section.Armies) with Text
+  case EasternSky          extends Category(Section.Armies) with Text
+  case FireOfTheSouth      extends Category(Section.Armies) with Text
+  case FistOfTheMountains  extends Category(Section.Armies) with Text
+  case FreebornStorm       extends Category(Section.Armies) with Text
+  case GoldenAxe           extends Category(Section.Armies) with Text
+  case GoldenSun           extends Category(Section.Armies) with Text
+  case GranitePillar       extends Category(Section.Armies) with Text
+  case GreenShield         extends Category(Section.Armies) with Text
+  case GryphonsPride       extends Category(Section.Armies) with Text with CustomName("Gryphon's Pride")
+  case HoundsOfGlory       extends Category(Section.Armies) with Text
+  case IronHelms           extends Category(Section.Armies) with Text
+  case IsaellasDance       extends Category(Section.Armies) with Text with CustomName("Isaella's Dance")
+  case LionsOfAdelmar      extends Category(Section.Armies) with Text
+  case NarwhalsSpear       extends Category(Section.Armies) with Text with CustomName("Narwhal's Spear")
+  case NorthernEagle       extends Category(Section.Armies) with Text
+  case PilgrimsDefiance    extends Category(Section.Armies) with Text with CustomName("Pilgrim's Defiance")
+  case QuietStep           extends Category(Section.Armies) with Text
+  case RedWindCorsairs     extends Category(Section.Armies) with Text
+  case SeventhWave         extends Category(Section.Armies) with Text
+  case SparrowsReckoning   extends Category(Section.Armies) with Text
+  case StarForged          extends Category(Section.Armies) with Text
+  case StrongReeds         extends Category(Section.Armies) with Text
+  case SummerStorm         extends Category(Section.Armies) with Text
+  case Towerjacks          extends Category(Section.Armies) with Text
+  case Tusks               extends Category(Section.Armies) with Text
+  case ValiantPegasus      extends Category(Section.Armies) with Text
+  case WinterSun           extends Category(Section.Armies) with Text
+  case WolvesOfWar         extends Category(Section.Armies) with Text
 
   lazy val name: String = toString.replaceAll("([a-z])([A-Z])", "$1 $2").replaceAll("Of", "of")
 
